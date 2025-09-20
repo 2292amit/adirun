@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Infinite Runner Game</title>
+    <link rel="stylesheet" href="src/styles.css?v=1726849200">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameUI">
+            <div id="score">Score: 0</div>
+            <div id="highScore">High Score: 0</div>
+            <div id="gameOverScreen" class="hidden">
+                <h2>Game Over!</h2>
+                <p>Score: <span id="finalScore">0</span></p>
+                <p>High Score: <span id="finalHighScore">0</span></p>
+                <button id="restartBtn">Play Again</button>
+            </div>
+            <div id="startScreen">
+                <h1>Infinite Runner</h1>
+                <p>Tap to jump and avoid obstacles!</p>
+                <p>Collect coins for points!</p>
+                <button id="startBtn">Start Game</button>
+            </div>
+            <div id="instructions" class="mobile-only">
+                <p>Tap to jump</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="src/game.js?v=1726850900"></script>
+    <script>
+        // Register service worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
