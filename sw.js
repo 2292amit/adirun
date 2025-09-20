@@ -1,4 +1,4 @@
-const CACHE_NAME = 'infinite-runner-v1';
+const CACHE_NAME = 'adis-running-game-v1';
 const urlsToCache = [
     '/',
     '/index.html',

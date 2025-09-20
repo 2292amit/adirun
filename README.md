@@ -1,4 +1,4 @@
-# 🏃‍♂️ Infinite Runner Game
+# 🏃‍♂️ Adi's Running Game
 
 An exciting browser-based infinite runner game with platforms, hurdles, and strategic gameplay!
 

@@ -1,6 +1,6 @@
 {
-    "name": "Infinite Runner Game",
-    "short_name": "Runner",
+    "name": "Adi's Running Game",
+    "short_name": "Adi's Runner",
     "description": "An exciting infinite runner game with smooth gameplay",
     "start_url": "/",
     "display": "standalone",
