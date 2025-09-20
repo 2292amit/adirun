@@ -10,8 +10,8 @@ class InfiniteRunner {
         
         // Game settings
         this.gravity = 0.8;
-        this.gameSpeed = 3; // Reduced from 6 to 3
-        this.speedIncrement = 0.002; // Reduced from 0.005 to 0.002
+        this.gameSpeed = 5; // Increased from 3 to 5 for faster initial speed
+        this.speedIncrement = 0.003; // Increased from 0.002 to 0.003 for better progression
         
         // Player - further increased size for better zoom
         this.player = {
@@ -286,7 +286,7 @@ class InfiniteRunner {
     
     resetGame() {
         this.score = 0;
-        this.gameSpeed = 3; // Reset to slower speed
+        this.gameSpeed = 5; // Reset to faster initial speed
         this.player.y = this.displayHeight - this.groundHeight - this.player.height;
         this.player.baseY = this.player.y;
         this.player.x = 120; // Reset horizontal position
@@ -342,8 +342,8 @@ class InfiniteRunner {
     }
     
     updatePlayer() {
-        // Update animation time and cooldowns
-        this.player.animationTime += 0.2;
+        // Update animation time and cooldowns - increased for more lively animation
+        this.player.animationTime += 0.3; // Increased from 0.2 to 0.3
         if (this.player.jumpCooldown > 0) {
             this.player.jumpCooldown--;
         }
@@ -377,9 +377,9 @@ class InfiniteRunner {
         
         // Running animation (only when grounded) - but don't modify actual Y position for physics
         if (this.player.grounded && this.gameState === 'playing') {
-            // Create bouncing effect for running
-            this.player.runCycle += 0.3;
-            this.player.runBounce = Math.sin(this.player.runCycle) * 3; // 3 pixel bounce
+            // Create bouncing effect for running - increased speed for more lively animation
+            this.player.runCycle += 0.5; // Increased from 0.3 to 0.5 for faster animation
+            this.player.runBounce = Math.sin(this.player.runCycle) * 4; // Increased bounce from 3 to 4 pixels
             // Don't modify this.player.y - use runBounce in rendering instead
         }
     }
