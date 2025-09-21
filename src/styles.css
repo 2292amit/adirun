@@ -294,11 +294,100 @@ button:active {
         font-size: 14px;
         margin-top: 10px;
     }
+    
+    /* Improve mobile controls for landscape */
+    .mobile-controls {
+        bottom: 10px;
+        padding: 0 15px;
+    }
+    
+    .control-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+    }
+    
+    .jump-btn {
+        width: 80px;
+        height: 50px;
+        font-size: 14px;
+    }
+    
+    .game-fullscreen-btn, 
+    .sound-toggle-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+    
+    .controls-left,
+    .controls-right {
+        gap: 10px;
+    }
+    
+    .timer-display {
+        top: 10px;
+        font-size: 16px;
+    }
+}
+
+/* Very short screens (landscape phones) */
+@media (max-height: 400px) {
+    .mobile-controls {
+        bottom: 5px;
+        padding: 0 10px;
+    }
+    
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 14px;
+    }
+    
+    .jump-btn {
+        width: 70px;
+        height: 45px;
+        font-size: 12px;
+    }
+    
+    .game-fullscreen-btn, 
+    .sound-toggle-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 12px;
+    }
+    
+    .controls-left,
+    .controls-right {
+        gap: 8px;
+    }
+    
+    .timer-display {
+        top: 5px;
+        font-size: 14px;
+    }
+    
+    /* Adjust difficulty selection for small screens */
+    .difficulty-buttons {
+        max-width: 200px;
+    }
+    
+    .difficulty-btn {
+        padding: 8px;
+    }
+    
+    .difficulty-name {
+        font-size: 12px;
+    }
+    
+    .difficulty-desc {
+        font-size: 10px;
+    }
 }
 
 /* Mobile Controls */
 .mobile-controls {
-    position: absolute;
+    position: fixed;
     bottom: 20px;
     left: 0;
     right: 0;
@@ -308,6 +397,8 @@ button:active {
     padding: 0 20px;
     pointer-events: none;
     z-index: 1000;
+    /* Ensure it's always visible even in fullscreen modes */
+    max-height: 100px;
 }
 
 .controls-left,
