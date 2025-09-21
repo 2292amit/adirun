@@ -127,6 +127,81 @@ button:active {
     padding: 12px 24px;
 }
 
+/* Difficulty Selection Styles */
+.difficulty-selection {
+    margin: 20px 0;
+}
+
+.difficulty-selection h3 {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.difficulty-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.difficulty-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    padding: 15px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    text-align: center;
+}
+
+.difficulty-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.difficulty-btn.selected {
+    background: rgba(255, 215, 0, 0.3);
+    border-color: #FFD700;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+.difficulty-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.difficulty-desc {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+    .difficulty-buttons {
+        max-width: 250px;
+    }
+    
+    .difficulty-btn {
+        padding: 12px;
+    }
+    
+    .difficulty-name {
+        font-size: 14px;
+    }
+    
+    .difficulty-desc {
+        font-size: 11px;
+    }
+}
+
 @keyframes pulse {
     0% { transform: scale(1); }
     50% { transform: scale(1.05); }
@@ -303,6 +378,24 @@ button:active {
 
 .game-fullscreen-btn:active {
     background: rgba(76, 175, 80, 1);
+}
+
+.sound-toggle-btn {
+    width: 50px;
+    height: 50px;
+    background: rgba(33, 150, 243, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    font-size: 18px;
+    margin-left: 10px;
+}
+
+.sound-toggle-btn:active {
+    background: rgba(33, 150, 243, 1);
+}
+
+.sound-toggle-btn.muted {
+    background: rgba(158, 158, 158, 0.8);
 }
 
 /* Timer Display */

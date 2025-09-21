@@ -11,7 +11,7 @@
     <meta name="msapplication-navbutton-color" content="#667eea">
     <meta name="apple-mobile-web-app-title" content="Adi's Running Game">
     <title>Adi's Running Game</title>
-    <link rel="stylesheet" href="src/styles.css?v=1726853050">
+    <link rel="stylesheet" href="src/styles.css?v=1726853500">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -28,10 +28,27 @@
             </div>
             <div id="startScreen">
                 <h1>Adi's Running Game</h1>
-                <p>Tap to jump and avoid obstacles!</p>
+                <div class="difficulty-selection">
+                    <h3>Choose Difficulty:</h3>
+                    <div class="difficulty-buttons">
+                        <button id="easyBtn" class="difficulty-btn selected" data-difficulty="easy">
+                            <span class="difficulty-name">🟢 Easy</span>
+                            <span class="difficulty-desc">More coins, fewer obstacles</span>
+                        </button>
+                        <button id="mediumBtn" class="difficulty-btn" data-difficulty="medium">
+                            <span class="difficulty-name">🟡 Medium</span>
+                            <span class="difficulty-desc">Balanced gameplay</span>
+                        </button>
+                        <button id="hardBtn" class="difficulty-btn" data-difficulty="hard">
+                            <span class="difficulty-name">🔴 Hard</span>
+                            <span class="difficulty-desc">Fewer coins, more obstacles</span>
+                        </button>
+                    </div>
+                </div>
+                <p>Use arrow keys or WASD to move, SPACE to jump</p>
                 <p>Collect coins for points!</p>
                 <button id="startBtn">Start Game</button>
-        <button id="fullscreenBtn" class="fullscreen-btn" style="display: none;">📱 Fullscreen</button>
+        <button id="fullscreenBtn" class="fullscreen-btn" style="display: none;">📱 Hide Browser UI</button>
             </div>
             <div id="instructions" class="mobile-only">
                 <p>Use buttons to move and jump</p>
@@ -46,6 +63,7 @@
                 <div class="controls-right">
                     <button id="jumpBtn" class="control-btn jump-btn">JUMP</button>
                     <button id="gameFullscreenBtn" class="game-fullscreen-btn">📱</button>
+                    <button id="soundToggleBtn" class="sound-toggle-btn">🔊</button>
                 </div>
             </div>
         </div>
@@ -56,7 +74,7 @@
         </div>
     </div>
     
-    <script src="src/game.js?v=1726853050"></script>
+    <script src="src/game.js?v=1726853550"></script>
     <script>
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {
@@ -71,16 +89,81 @@
             });
         }
         
-        // Mobile fullscreen functionality
+        // Enhanced mobile fullscreen functionality
         function enterFullscreen() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) {
-                elem.msRequestFullscreen();
+            // Try canvas fullscreen first (works better on mobile)
+            const canvas = document.getElementById('gameCanvas');
+            const elem = canvas || document.documentElement;
+            
+            // Try multiple fullscreen methods with error handling
+            const tryFullscreen = async () => {
+                try {
+                    // Try canvas first if available
+                    if (canvas && canvas.requestFullscreen) {
+                        await canvas.requestFullscreen();
+                    } else if (canvas && canvas.webkitRequestFullscreen) {
+                        await canvas.webkitRequestFullscreen();
+                    } else if (canvas && canvas.mozRequestFullScreen) {
+                        await canvas.mozRequestFullScreen();
+                    } else if (canvas && canvas.webkitEnterFullscreen) {
+                        await canvas.webkitEnterFullscreen();
+                    } else if (elem.requestFullscreen) {
+                        await elem.requestFullscreen();
+                    } else if (elem.webkitRequestFullscreen) {
+                        await elem.webkitRequestFullscreen();
+                    } else if (elem.mozRequestFullScreen) {
+                        await elem.mozRequestFullScreen();
+                    } else if (elem.msRequestFullscreen) {
+                        await elem.msRequestFullscreen();
+                    } else {
+                        throw new Error('Fullscreen not supported');
+                    }
+                    console.log('Fullscreen activated');
+                } catch (error) {
+                    console.log('Fullscreen failed, trying simulation:', error);
+                    // Fallback: simulate fullscreen for mobile
+                    simulateMobileFullscreen();
+                }
+            };
+            
+            tryFullscreen();
+        }
+        
+        // Simulate fullscreen for mobile browsers that don't support true fullscreen
+        function simulateMobileFullscreen() {
+            // Hide address bar
+            if (window.scrollTo) {
+                window.scrollTo(0, 1);
+                setTimeout(() => window.scrollTo(0, 1), 100);
+                setTimeout(() => window.scrollTo(0, 1), 500);
             }
+            
+            // Set body to full height with minimal UI
+            document.body.style.height = '100vh';
+            document.body.style.height = window.innerHeight + 'px';
+            document.body.style.overflow = 'hidden';
+            
+            // Try to trigger minimal-ui on iOS
+            const viewport = document.querySelector('meta[name=viewport]');
+            if (viewport) {
+                const originalContent = viewport.content;
+                viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui';
+                
+                // Revert after a short delay to trigger the change
+                setTimeout(() => {
+                    viewport.content = originalContent;
+                    setTimeout(() => {
+                        viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui';
+                    }, 100);
+                }, 100);
+            }
+            
+            // Force resize event to adjust canvas
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 200);
+            
+            console.log('Mobile fullscreen simulation activated');
         }
         
         // Make enterFullscreen globally accessible
@@ -102,8 +185,17 @@
                 
                 // Fullscreen button handler
                 fullscreenBtn.addEventListener('click', () => {
+                    fullscreenBtn.textContent = '⏳ Loading...';
+                    fullscreenBtn.disabled = true;
+                    
                     enterFullscreen();
-                    fullscreenBtn.style.display = 'none'; // Hide after use
+                    
+                    setTimeout(() => {
+                        fullscreenBtn.textContent = '✅ Applied';
+                        setTimeout(() => {
+                            fullscreenBtn.style.display = 'none'; // Hide after use
+                        }, 1500);
+                    }, 500);
                 });
             }
             

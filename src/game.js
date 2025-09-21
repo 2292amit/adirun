@@ -5,6 +5,7 @@ class InfiniteRunner {
         
         // Game state
         this.gameState = 'menu'; // 'menu', 'playing', 'gameOver'
+        this.difficulty = 'easy'; // Current difficulty level
         this.score = 0;
         this.highScore = parseInt(localStorage.getItem('highScore')) || 0;
         
@@ -79,6 +80,13 @@ class InfiniteRunner {
         this.snailTimer = 0;
         this.watches = []; // Time extension powerups
         this.watchTimer = 0;
+        
+        // Sound system
+        this.sounds = {};
+        this.soundsEnabled = true;
+        this.musicEnabled = true;
+        this.backgroundMusic = null;
+        this.runningSound = null;
         this.scheduledPlatforms = []; // Platforms scheduled to help with obstacles
         
         // Background
@@ -93,6 +101,9 @@ class InfiniteRunner {
         // Setup canvas now that ground height is defined
         this.setupCanvas();
         
+        // Initialize sound system
+        this.initSounds();
+        
         // Timing
         this.obstacleTimer = 0;
         this.coinTimer = 0;
@@ -100,6 +111,52 @@ class InfiniteRunner {
         this.platformTimer = 0;
         this.holeTimer = 0;
         this.rampTimer = 0;
+        
+        // Difficulty configurations
+        this.difficultySettings = {
+            easy: {
+                obstacleChance: 0.3,
+                coinChance: 0.8,
+                holeChance: 0.2,
+                platformChance: 0.6,
+                rampChance: 0.5,
+                birdChance: 0.2,
+                snailChance: 0.3,
+                watchChance: 0.2,
+                minObstacleSpacing: 300,
+                minCoinSpacing: 150,
+                minHoleSpacing: 500,
+                name: 'Easy Mode'
+            },
+            medium: {
+                obstacleChance: 0.4,
+                coinChance: 0.6,
+                holeChance: 0.3,
+                platformChance: 0.5,
+                rampChance: 0.4,
+                birdChance: 0.3,
+                snailChance: 0.4,
+                watchChance: 0.15,
+                minObstacleSpacing: 250,
+                minCoinSpacing: 180,
+                minHoleSpacing: 400,
+                name: 'Medium Mode'
+            },
+            hard: {
+                obstacleChance: 0.6,
+                coinChance: 0.4,
+                holeChance: 0.4,
+                platformChance: 0.4,
+                rampChance: 0.3,
+                birdChance: 0.5,
+                snailChance: 0.6,
+                watchChance: 0.1,
+                minObstacleSpacing: 200,
+                minCoinSpacing: 220,
+                minHoleSpacing: 350,
+                name: 'Hard Mode'
+            }
+        };
         
         // Assets loading
         this.assetsLoaded = false;
@@ -113,9 +170,193 @@ class InfiniteRunner {
         
         // UI elements
         this.setupUI();
+        this.setupDifficultySelection();
         
         // Start game loop
         this.gameLoop();
+    }
+    
+    initSounds() {
+        // Create simple sound effects using Web Audio API
+        this.audioContext = null;
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.log('Web Audio API not supported, sound will be disabled');
+            this.soundsEnabled = false;
+            return;
+        }
+        
+        // Create sound effects using oscillators
+        this.createSoundEffects();
+        
+        // Load background music
+        this.loadBackgroundMusic();
+    }
+    
+    createSoundEffects() {
+        // We'll create sound effects procedurally using Web Audio API
+        this.sounds = {
+            jump: () => this.playTone(200, 0.1, 'square'),
+            coin: () => this.playTone(800, 0.2, 'sine'),
+            watch: () => this.playChord([400, 600, 800], 0.3, 'sine'),
+            death: () => this.playTone(150, 0.5, 'sawtooth'),
+            powerup: () => this.playChord([200, 400, 600, 800], 0.4, 'sine')
+        };
+        
+        // Create running sound (procedural)
+        this.createRunningSound();
+    }
+    
+    loadBackgroundMusic() {
+        try {
+            this.backgroundMusic = new Audio('icons/background.mp3');
+            this.backgroundMusic.loop = true;
+            this.backgroundMusic.volume = 0.1; // Much lower volume to not overpower other sounds
+            this.backgroundMusic.preload = 'auto';
+            
+            // Handle loading errors
+            this.backgroundMusic.onerror = () => {
+                console.log('Could not load background music');
+                this.backgroundMusic = null;
+            };
+            
+            this.backgroundMusic.oncanplaythrough = () => {
+                console.log('Background music loaded successfully');
+            };
+        } catch (e) {
+            console.log('Error loading background music:', e);
+            this.backgroundMusic = null;
+        }
+    }
+    
+    createRunningSound() {
+        // Create a running sound effect using Web Audio API
+        this.runningSound = {
+            isPlaying: false,
+            oscillator: null,
+            gainNode: null,
+            start: () => {
+                if (!this.soundsEnabled || !this.audioContext || this.runningSound.isPlaying) return;
+                
+                try {
+                    this.runningSound.oscillator = this.audioContext.createOscillator();
+                    this.runningSound.gainNode = this.audioContext.createGain();
+                    
+                    this.runningSound.oscillator.connect(this.runningSound.gainNode);
+                    this.runningSound.gainNode.connect(this.audioContext.destination);
+                    
+                    // Create a rhythmic running sound
+                    this.runningSound.oscillator.frequency.value = 80;
+                    this.runningSound.oscillator.type = 'triangle';
+                    this.runningSound.gainNode.gain.value = 0.05; // Very quiet
+                    
+                    // Add some rhythm variation
+                    setInterval(() => {
+                        if (this.runningSound.isPlaying && this.runningSound.gainNode) {
+                            this.runningSound.gainNode.gain.setValueAtTime(0.08, this.audioContext.currentTime);
+                            this.runningSound.gainNode.gain.setValueAtTime(0.02, this.audioContext.currentTime + 0.1);
+                        }
+                    }, 200);
+                    
+                    this.runningSound.oscillator.start();
+                    this.runningSound.isPlaying = true;
+                } catch (e) {
+                    console.log('Error starting running sound:', e);
+                }
+            },
+            stop: () => {
+                if (this.runningSound.oscillator && this.runningSound.isPlaying) {
+                    try {
+                        this.runningSound.oscillator.stop();
+                        this.runningSound.oscillator = null;
+                        this.runningSound.gainNode = null;
+                        this.runningSound.isPlaying = false;
+                    } catch (e) {
+                        console.log('Error stopping running sound:', e);
+                    }
+                }
+            }
+        };
+    }
+    
+    playTone(frequency, duration, waveType = 'sine') {
+        if (!this.soundsEnabled || !this.audioContext) return;
+        
+        try {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = waveType;
+            
+            gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+            
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + duration);
+        } catch (e) {
+            console.log('Error playing sound:', e);
+        }
+    }
+    
+    playChord(frequencies, duration, waveType = 'sine') {
+        if (!this.soundsEnabled || !this.audioContext) return;
+        
+        frequencies.forEach((freq, index) => {
+            setTimeout(() => {
+                this.playTone(freq, duration * 0.7, waveType);
+            }, index * 50);
+        });
+    }
+    
+    toggleSound() {
+        this.soundsEnabled = !this.soundsEnabled;
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
+        if (soundToggleBtn) {
+            if (this.soundsEnabled) {
+                soundToggleBtn.textContent = '🔊';
+                soundToggleBtn.classList.remove('muted');
+                this.startBackgroundMusic();
+            } else {
+                soundToggleBtn.textContent = '🔇';
+                soundToggleBtn.classList.add('muted');
+                this.stopBackgroundMusic();
+                this.runningSound.stop();
+            }
+        }
+        
+        // Play a test sound when enabling
+        if (this.soundsEnabled && this.sounds.coin) {
+            this.sounds.coin();
+        }
+    }
+    
+    startBackgroundMusic() {
+        if (this.backgroundMusic && this.musicEnabled && this.soundsEnabled) {
+            try {
+                this.backgroundMusic.currentTime = 0;
+                this.backgroundMusic.play().catch(e => {
+                    console.log('Could not start background music:', e);
+                });
+            } catch (e) {
+                console.log('Error starting background music:', e);
+            }
+        }
+    }
+    
+    stopBackgroundMusic() {
+        if (this.backgroundMusic) {
+            try {
+                this.backgroundMusic.pause();
+                this.backgroundMusic.currentTime = 0;
+            } catch (e) {
+                console.log('Error stopping background music:', e);
+            }
+        }
     }
     
     setupCanvas() {
@@ -386,6 +627,15 @@ class InfiniteRunner {
                 }
             });
         }
+        
+        // Sound toggle button
+        const soundToggleBtn = document.getElementById('soundToggleBtn');
+        if (soundToggleBtn) {
+            soundToggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleSound();
+            });
+        }
     }
     
     setupUI() {
@@ -400,6 +650,28 @@ class InfiniteRunner {
         this.updateHighScoreDisplay();
     }
     
+    setupDifficultySelection() {
+        // Set up difficulty selection buttons
+        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        
+        difficultyButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove selected class from all buttons
+                difficultyButtons.forEach(b => b.classList.remove('selected'));
+                
+                // Add selected class to clicked button
+                btn.classList.add('selected');
+                
+                // Update difficulty
+                this.difficulty = btn.dataset.difficulty;
+                console.log('Difficulty set to:', this.difficultySettings[this.difficulty].name);
+            });
+        });
+        
+        // Set default difficulty
+        this.difficulty = 'easy';
+    }
+    
     handleJump() {
         if (this.gameState === 'menu') {
             this.startGame();
@@ -412,6 +684,11 @@ class InfiniteRunner {
                 this.player.velocityY = -22; // Jump power
                 this.player.jumping = true;
                 this.player.jumpCooldown = 10; // 10 frame cooldown
+                
+                // Play jump sound
+                if (this.sounds.jump) {
+                    this.sounds.jump();
+                }
                 
                 if (this.player.grounded) {
                     // Ground jump - reset air jumps
@@ -432,6 +709,15 @@ class InfiniteRunner {
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('startScreen').classList.add('hidden');
+        
+        // Resume audio context if needed (required for mobile browsers)
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        
+        // Start background music
+        this.startBackgroundMusic();
+        
         this.resetGame();
     }
     
@@ -440,6 +726,10 @@ class InfiniteRunner {
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('gameOverScreen').classList.add('hidden');
+        
+        // Restart background music
+        this.startBackgroundMusic();
+        
         this.resetGame();
     }
     
@@ -596,7 +886,7 @@ class InfiniteRunner {
         
         // Check for block collisions that would prevent movement
         this.blocks.forEach(block => {
-            // Check if player would collide with block if moving
+            // Simple collision prevention - check if player would hit block sides
             const playerRight = this.player.x + this.player.width;
             const playerLeft = this.player.x;
             const playerTop = this.player.y;
@@ -612,10 +902,10 @@ class InfiniteRunner {
             
             if (verticalOverlap) {
                 // Check horizontal proximity for movement blocking
-                if (playerRight >= blockLeft - 10 && playerRight <= blockLeft + 5) {
+                if (playerRight >= blockLeft - 15 && playerRight <= blockLeft + 5) {
                     canMoveRight = false; // Block is directly in front when moving right
                 }
-                if (playerLeft <= blockRight + 10 && playerLeft >= blockRight - 5) {
+                if (playerLeft <= blockRight + 15 && playerLeft >= blockRight - 5) {
                     canMoveLeft = false; // Block is directly in front when moving left
                 }
             }
@@ -658,10 +948,20 @@ class InfiniteRunner {
             this.player.runCycle += 0.5; // Increased from 0.3 to 0.5 for faster animation
             this.player.runBounce = Math.sin(this.player.runCycle) * 4; // Increased bounce from 3 to 4 pixels
             // Don't modify this.player.y - use runBounce in rendering instead
+            
+            // Start running sound if not already playing
+            if (this.runningSound && !this.runningSound.isPlaying) {
+                this.runningSound.start();
+            }
         } else {
             // Reset running animation when not moving
             this.player.runBounce = 0;
             // Keep runCycle but don't advance it when not moving
+            
+            // Stop running sound when not moving
+            if (this.runningSound && this.runningSound.isPlaying) {
+                this.runningSound.stop();
+            }
         }
     }
     
@@ -902,12 +1202,13 @@ class InfiniteRunner {
         const upcomingObstacles = this.getUpcomingObstacles();
         const upcomingHoles = this.getUpcomingHoles();
         const upcomingPlatforms = this.getUpcomingPlatforms();
+        const upcomingBlocks = this.getUpcomingBlocks();
         
-        // Spawn obstacles with smart spacing
-        const minObstacleSpacing = 250; // Minimum safe distance between obstacles
-        if (this.obstacleTimer > minObstacleSpacing) {
-            const canSpawnObstacle = this.canSpawnObstacle(upcomingHoles, upcomingPlatforms);
-            if (canSpawnObstacle) {
+        // Spawn obstacles with difficulty-based spacing and chance
+        const settings = this.difficultySettings[this.difficulty];
+        if (this.obstacleTimer > settings.minObstacleSpacing) {
+            const canSpawnObstacle = this.canSpawnObstacle(upcomingHoles, upcomingPlatforms, upcomingBlocks);
+            if (canSpawnObstacle && Math.random() < settings.obstacleChance) {
                 this.spawnObstacle();
                 this.obstacleTimer = 0;
                 
@@ -918,11 +1219,10 @@ class InfiniteRunner {
             }
         }
         
-        // Spawn holes with strategic spacing
-        const minHoleSpacing = 400; // Holes should be less frequent
-        if (this.holeTimer > minHoleSpacing) {
+        // Spawn holes with difficulty-based spacing and chance
+        if (this.holeTimer > settings.minHoleSpacing) {
             const canSpawnHole = this.canSpawnHole(upcomingObstacles, upcomingPlatforms);
-            if (canSpawnHole) {
+            if (canSpawnHole && Math.random() < settings.holeChance) {
                 this.spawnHole();
                 this.holeTimer = 0;
                 
@@ -931,63 +1231,64 @@ class InfiniteRunner {
             }
         }
         
-        // Spawn platforms strategically (less frequently, more purposeful)
+        // Spawn platforms with difficulty-based chance
         const minPlatformSpacing = 450; // Increased spacing for more strategic placement
         if (this.platformTimer > minPlatformSpacing) {
             // Only spawn if there's a reasonable gap and not too many platforms nearby
             const nearbyPlatforms = upcomingPlatforms.filter(p => p.x < this.displayWidth + 300);
-            if (nearbyPlatforms.length < 2) { // Limit platform density
+            if (nearbyPlatforms.length < 2 && Math.random() < settings.platformChance) { // Limit platform density
                 this.spawnPlatform();
                 this.platformTimer = 0;
             }
         }
         
-        // Spawn coins between obstacles
-        const minCoinSpacing = 180;
-        if (this.coinTimer > minCoinSpacing) {
+        // Spawn coins with difficulty-based spacing and chance
+        if (this.coinTimer > settings.minCoinSpacing) {
             const canSpawnCoin = this.canSpawnCoin(upcomingObstacles, upcomingHoles);
-            if (canSpawnCoin) {
+            if (canSpawnCoin && Math.random() < settings.coinChance) {
                 this.spawnCoin();
                 this.coinTimer = 0;
             }
         }
         
-        // Spawn ramps occasionally for vertical engagement
+        // Spawn ramps with difficulty-based chance
         const minRampSpacing = 400; // Reduced spacing for more frequent spawning
         if (this.rampTimer > minRampSpacing) {
             const canSpawnRamp = this.canSpawnRamp(upcomingObstacles, upcomingHoles, upcomingPlatforms);
-            const randomChance = Math.random() < 0.3;
             
-            if (canSpawnRamp || randomChance) { // Spawn if strategic OR 30% random chance
+            if (canSpawnRamp && Math.random() < settings.rampChance) {
                 this.spawnRamp();
                 this.rampTimer = 0;
             }
         }
         
-        // Spawn blocks occasionally
+        // Spawn blocks occasionally (not affected by difficulty but check for conflicts)
         const minBlockSpacing = 300;
         if (this.blockTimer > minBlockSpacing && Math.random() < 0.4) {
-            this.spawnBlock();
-            this.blockTimer = 0;
+            const canSpawnBlock = this.canSpawnBlock(upcomingObstacles, upcomingHoles);
+            if (canSpawnBlock) {
+                this.spawnBlock();
+                this.blockTimer = 0;
+            }
         }
         
-        // Spawn birds at different heights
+        // Spawn birds with difficulty-based chance
         const minBirdSpacing = 200;
-        if (this.birdTimer > minBirdSpacing && Math.random() < 0.3) {
+        if (this.birdTimer > minBirdSpacing && Math.random() < settings.birdChance) {
             this.spawnBird();
             this.birdTimer = 0;
         }
         
-        // Spawn snails on ground
+        // Spawn snails with difficulty-based chance
         const minSnailSpacing = 400;
-        if (this.snailTimer > minSnailSpacing && Math.random() < 0.5) {
+        if (this.snailTimer > minSnailSpacing && Math.random() < settings.snailChance) {
             this.spawnSnail();
             this.snailTimer = 0;
         }
         
-        // Spawn watch powerups rarely
+        // Spawn watch powerups with difficulty-based chance
         const minWatchSpacing = 800; // Very rare
-        if (this.watchTimer > minWatchSpacing && Math.random() < 0.15) {
+        if (this.watchTimer > minWatchSpacing && Math.random() < settings.watchChance) {
             this.spawnWatch();
             this.watchTimer = 0;
         }
@@ -1200,10 +1501,46 @@ class InfiniteRunner {
         );
     }
     
-    canSpawnObstacle(upcomingHoles, upcomingPlatforms) {
+    getUpcomingBlocks() {
+        const checkDistance = 500;
+        return this.blocks.filter(block => 
+            block.x > this.displayWidth && block.x < this.displayWidth + checkDistance
+        );
+    }
+    
+    canSpawnObstacle(upcomingHoles, upcomingPlatforms, upcomingBlocks) {
         const minDistanceFromHole = 200; // Minimum distance from any hole
+        const minDistanceFromBlock = 150; // Minimum distance from any block
         
         // Don't spawn obstacle too close to a hole
+        for (let hole of upcomingHoles) {
+            if (Math.abs(hole.x - this.displayWidth) < minDistanceFromHole) {
+                return false;
+            }
+        }
+        
+        // Don't spawn obstacle too close to a block
+        for (let block of upcomingBlocks) {
+            if (Math.abs(block.x - this.displayWidth) < minDistanceFromBlock) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    canSpawnBlock(upcomingObstacles, upcomingHoles) {
+        const minDistanceFromObstacle = 150; // Minimum distance from any obstacle
+        const minDistanceFromHole = 200; // Minimum distance from any hole
+        
+        // Don't spawn block too close to an obstacle
+        for (let obstacle of upcomingObstacles) {
+            if (Math.abs(obstacle.x - this.displayWidth) < minDistanceFromObstacle) {
+                return false;
+            }
+        }
+        
+        // Don't spawn block too close to a hole
         for (let hole of upcomingHoles) {
             if (Math.abs(hole.x - this.displayWidth) < minDistanceFromHole) {
                 return false;
@@ -1312,26 +1649,61 @@ class InfiniteRunner {
             }
         });
         
-        // Check block collisions (blocks allow standing on top only)
+        // Check block collisions - improved top collision detection
         this.blocks.forEach(block => {
-            if (this.isCollidingWithBlock(this.player, block)) {
-                // Check if collision is from top
-                const playerBottom = this.player.y + this.player.height;
-                const blockTop = block.y;
-                const playerCenterX = this.player.x + this.player.width / 2;
-                const blockCenterX = block.x + block.width / 2;
+            const playerLeft = this.player.x;
+            const playerRight = this.player.x + this.player.width;
+            const playerTop = this.player.y;
+            const playerBottom = this.player.y + this.player.height;
+            
+            const blockLeft = block.x;
+            const blockRight = block.x + block.width;
+            const blockTop = block.y;
+            const blockBottom = block.y + block.height;
+            
+            // Check if player is overlapping with block horizontally
+            const horizontalOverlap = playerRight > blockLeft && playerLeft < blockRight;
+            
+            if (horizontalOverlap) {
+                // Check if player is approaching from above (top collision)
+                const isComingFromAbove = this.player.velocityY >= 0 && playerTop < blockTop;
+                const isLandingOnTop = playerBottom >= blockTop && playerBottom <= blockTop + 20;
                 
-                // If player is landing on top of block
-                if (playerBottom <= blockTop + 10 && this.player.velocityY >= 0 && 
-                    Math.abs(playerCenterX - blockCenterX) < block.width / 2) {
-                    // Player can stand on block
+                if (isComingFromAbove && isLandingOnTop) {
+                    // Player is landing on top of block
                     this.player.y = blockTop - this.player.height;
                     this.player.velocityY = 0;
                     this.player.jumping = false;
                     this.player.grounded = true;
                     this.player.airJumpsLeft = 1;
+                    return; // Exit early since we handled the collision
                 }
-                // Side collisions are now prevented in updatePlayer, no need to handle here
+                
+                // Check if player is already standing on the block
+                const isOnTop = this.player.grounded && Math.abs(playerBottom - blockTop) <= 5;
+                if (isOnTop) {
+                    // Keep player on top of block
+                    this.player.y = blockTop - this.player.height;
+                    this.player.velocityY = 0;
+                    this.player.grounded = true;
+                    return; // Exit early since we handled the collision
+                }
+                
+                // Check for vertical overlap (player is inside the block)
+                const verticalOverlap = playerBottom > blockTop + 5 && playerTop < blockBottom - 5;
+                if (verticalOverlap) {
+                    // Player is inside the block - push them out
+                    if (playerBottom - blockTop < blockBottom - playerTop) {
+                        // Push up (player is closer to top of block)
+                        this.player.y = blockTop - this.player.height;
+                        this.player.velocityY = 0;
+                        this.player.grounded = true;
+                    } else {
+                        // Push down (player is closer to bottom of block)
+                        this.player.y = blockBottom;
+                        this.player.velocityY = 2; // Small downward velocity
+                    }
+                }
             }
         });
         
@@ -1438,6 +1810,11 @@ class InfiniteRunner {
         this.deathAnimation.rotation = 0;
         this.deathAnimation.scale = 1;
         
+        // Play death sound
+        if (this.sounds.death) {
+            this.sounds.death();
+        }
+        
         // Stop world movement during death
         this.worldSpeed = 0;
     }
@@ -1477,6 +1854,11 @@ class InfiniteRunner {
         const pointsEarned = basePoints * coin.multiplier;
         this.coinScore += pointsEarned;
         
+        // Play coin sound
+        if (this.sounds.coin) {
+            this.sounds.coin();
+        }
+        
         // Ensure coin score doesn't go below 0
         if (this.coinScore < 0) {
             this.coinScore = 0;
@@ -1504,6 +1886,11 @@ class InfiniteRunner {
     collectWatch(watch, index) {
         // Add 10 seconds to the timer
         this.gameTimeRemaining = Math.min(this.gameTimeLimit, this.gameTimeRemaining + 10);
+        
+        // Play watch sound
+        if (this.sounds.watch) {
+            this.sounds.watch();
+        }
         
         // Create time bonus popup (modify createScorePopup to accept custom text)
         this.createTimePopup(watch.x, watch.y, '+10 SEC');
@@ -1575,6 +1962,12 @@ class InfiniteRunner {
     
     gameOver() {
         this.gameState = 'gameOver';
+        
+        // Stop background music and running sound
+        this.stopBackgroundMusic();
+        if (this.runningSound && this.runningSound.isPlaying) {
+            this.runningSound.stop();
+        }
         
         if (this.score > this.highScore) {
             this.highScore = this.score;
