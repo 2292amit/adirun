@@ -16,36 +16,260 @@
     <title>Adi's Running Game</title>
     <link rel="stylesheet" href="src/styles.css?v=1726853999">
     <style>
+        /* Mobile canvas sizing to ensure UI fits */
+        @media (max-width: 768px) {
+            #gameCanvas {
+                max-height: 60vh !important;
+                max-width: 95vw !important;
+            }
+            
+            #gameContainer {
+                height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                padding: 10px !important;
+                box-sizing: border-box !important;
+            }
+            
+            .mobile-controls {
+                position: fixed !important;
+                left: 10px !important;
+                right: 10px !important;
+                z-index: 1001 !important;
+                display: none !important;
+            }
+            
+            /* Only show controls when game is playing */
+            body.playing .mobile-controls {
+                display: flex !important;
+            }
+            
+            .timer-display {
+                position: fixed !important;
+                top: 10px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                z-index: 1001 !important;
+            }
+            
+            /* Dropdown styles */
+            .difficulty-selection {
+                margin: 15px 0 !important;
+                text-align: center !important;
+            }
+            
+            .difficulty-label {
+                color: white !important;
+                font-size: 16px !important;
+                margin-right: 10px !important;
+                display: inline-block !important;
+            }
+            
+            .difficulty-dropdown {
+                background: rgba(255, 255, 255, 0.1) !important;
+                border: 2px solid rgba(255, 255, 255, 0.3) !important;
+                border-radius: 8px !important;
+                color: white !important;
+                padding: 8px 12px !important;
+                font-size: 14px !important;
+                min-width: 200px !important;
+                cursor: pointer !important;
+                backdrop-filter: blur(10px) !important;
+            }
+            
+            .difficulty-dropdown:hover {
+                background: rgba(255, 255, 255, 0.2) !important;
+                border-color: rgba(255, 255, 255, 0.5) !important;
+            }
+            
+            .difficulty-dropdown:focus {
+                outline: none !important;
+                border-color: #FFD700 !important;
+                box-shadow: 0 0 10px rgba(255, 215, 0, 0.5) !important;
+            }
+            
+            .difficulty-dropdown option {
+                background: #333 !important;
+                color: white !important;
+                padding: 8px !important;
+            }
+        }
+        
         /* Force landscape fixes - inline to bypass cache */
         @media (max-height: 500px) and (orientation: landscape) {
-            #startScreen, #gameOverScreen {
+            #gameCanvas {
+                max-height: 60vh !important;
+                max-width: 85vw !important;
+            }
+            
+            #gameContainer {
                 padding: 5px !important;
-                margin-bottom: 0 !important;
-                max-height: 95vh !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
                 overflow-y: auto !important;
             }
             
-            .difficulty-buttons {
-                flex-direction: row !important;
-                gap: 8px !important;
+            #startScreen, #gameOverScreen {
+                padding: 3px !important;
+                margin: 0 !important;
+                max-height: 95vh !important;
                 max-width: 100% !important;
+                overflow-y: auto !important;
+                position: relative !important;
+                top: 0 !important;
+                bottom: auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
             }
             
-            .difficulty-btn {
-                flex: 1 !important;
-                max-width: 110px !important;
-                padding: 6px !important;
+            .difficulty-selection {
+                margin: 8px 0 !important;
+                width: 100% !important;
+            }
+            
+            .difficulty-label {
+                font-size: 14px !important;
+                margin-right: 5px !important;
+            }
+            
+            .difficulty-dropdown {
+                font-size: 12px !important;
+                padding: 6px 8px !important;
+                min-width: 180px !important;
             }
             
             #startScreen h1 {
-                font-size: 1.2em !important;
-                margin-bottom: 3px !important;
+                font-size: 1.1em !important;
+                margin: 2px 0 !important;
+            }
+            
+            #startScreen p {
+                font-size: 11px !important;
+                margin: 2px 0 !important;
             }
             
             button {
-                padding: 5px 12px !important;
-                font-size: 12px !important;
+                padding: 4px 10px !important;
+                font-size: 11px !important;
                 margin: 2px !important;
+            }
+            
+            .fullscreen-btn {
+                padding: 3px 8px !important;
+                font-size: 10px !important;
+            }
+            
+            body.playing .mobile-controls {
+                bottom: 3px !important;
+                left: 5px !important;
+                right: 5px !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                border-radius: 10px !important;
+                padding: 5px !important;
+                backdrop-filter: blur(3px) !important;
+            }
+            
+            body.playing .control-btn {
+                width: 45px !important;
+                height: 45px !important;
+                font-size: 14px !important;
+            }
+            
+            body.playing .jump-btn {
+                width: 70px !important;
+                height: 45px !important;
+                font-size: 12px !important;
+            }
+            
+            body.playing .game-fullscreen-btn, 
+            body.playing .sound-toggle-btn {
+                width: 35px !important;
+                height: 35px !important;
+                font-size: 12px !important;
+            }
+        }
+        
+        /* Very short landscape screens - ultra compact */
+        @media (max-height: 400px) and (orientation: landscape) {
+            #startScreen, #gameOverScreen {
+                max-height: 98vh !important;
+                padding: 2px !important;
+                font-size: 10px !important;
+            }
+            
+            #startScreen h1 {
+                font-size: 0.9em !important;
+                margin: 1px 0 !important;
+            }
+            
+            #startScreen p {
+                font-size: 9px !important;
+                margin: 1px 0 !important;
+            }
+            
+            .difficulty-selection {
+                margin: 5px 0 !important;
+            }
+            
+            .difficulty-label {
+                font-size: 12px !important;
+                margin-right: 3px !important;
+            }
+            
+            .difficulty-dropdown {
+                font-size: 10px !important;
+                padding: 4px 6px !important;
+                min-width: 150px !important;
+            }
+            
+            button {
+                padding: 3px 8px !important;
+                font-size: 9px !important;
+                margin: 1px !important;
+            }
+            
+            .fullscreen-btn {
+                padding: 2px 6px !important;
+                font-size: 8px !important;
+            }
+        }
+        
+        /* Portrait mobile specific */
+        @media (max-width: 768px) and (orientation: portrait) {
+            #gameCanvas {
+                max-height: 70vh !important;
+                width: 90vw !important;
+            }
+            
+            #gameContainer {
+                height: 100vh !important;
+                overflow: hidden !important;
+            }
+            
+            #startScreen, #gameOverScreen {
+                max-height: 85vh !important;
+                overflow-y: auto !important;
+                margin-bottom: 0 !important;
+            }
+            
+            /* Overlay controls on bottom of canvas in portrait - only when playing */
+            body.playing .mobile-controls {
+                bottom: 15vh !important;
+                background: rgba(0, 0, 0, 0.3) !important;
+                border-radius: 15px !important;
+                padding: 10px !important;
+                backdrop-filter: blur(5px) !important;
+            }
+        }
+        
+        /* Landscape mobile - keep controls at bottom - only when playing */
+        @media (max-width: 768px) and (orientation: landscape) {
+            body.playing .mobile-controls {
+                bottom: 10px !important;
             }
         }
     </style>
@@ -66,21 +290,14 @@
             <div id="startScreen">
                 <h1>Adi's Running Game</h1>
                 <div class="difficulty-selection">
-                    <h3>Choose Difficulty:</h3>
-                    <div class="difficulty-buttons">
-                        <button id="easyBtn" class="difficulty-btn selected" data-difficulty="easy">
-                            <span class="difficulty-name">🟢 Easy</span>
-                            <span class="difficulty-desc">More coins, fewer obstacles</span>
-                        </button>
-                        <button id="mediumBtn" class="difficulty-btn" data-difficulty="medium">
-                            <span class="difficulty-name">🟡 Medium</span>
-                            <span class="difficulty-desc">Balanced gameplay</span>
-                        </button>
-                        <button id="hardBtn" class="difficulty-btn" data-difficulty="hard">
-                            <span class="difficulty-name">🔴 Hard</span>
-                            <span class="difficulty-desc">Fewer coins, more obstacles</span>
-                        </button>
-                    </div>
+                    <label for="difficultySelect">
+                        <span class="difficulty-label">Difficulty:</span>
+                        <select id="difficultySelect" class="difficulty-dropdown">
+                            <option value="easy">🟢 Easy - More coins, fewer obstacles</option>
+                            <option value="medium">🟡 Medium - Balanced gameplay</option>
+                            <option value="hard">🔴 Hard - Fewer coins, more obstacles</option>
+                        </select>
+                    </label>
                 </div>
                 <p>Use arrow keys or WASD to move, SPACE to jump</p>
                 <p>Collect coins for points!</p>
@@ -111,7 +328,7 @@
         </div>
     </div>
     
-    <script src="src/game.js?v=1726853650"></script>
+    <script src="src/game.js?v=1726854400"></script>
     <script>
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {
@@ -126,11 +343,18 @@
             });
         }
         
-        // Simple and reliable fullscreen functionality
+        // Enhanced fullscreen functionality for all platforms
         function enterFullscreen() {
             console.log('Entering fullscreen mode...');
             
-            // For mobile browsers, use immediate simulation
+            // Special handling for iOS Chrome and Safari
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                console.log('iOS device detected');
+                iosFullscreen();
+                return;
+            }
+            
+            // For other mobile browsers, use simulation
             if (isMobile()) {
                 simulateMobileFullscreen();
                 return;
@@ -151,6 +375,54 @@
             } else {
                 simulateMobileFullscreen();
             }
+        }
+        
+        // iOS-specific fullscreen handling
+        function iosFullscreen() {
+            console.log('Starting iOS fullscreen...');
+            
+            // Force immediate scroll to hide Safari's UI
+            window.scrollTo(0, 0);
+            setTimeout(() => window.scrollTo(0, 1), 10);
+            setTimeout(() => window.scrollTo(0, 0), 50);
+            
+            // Update viewport for iOS minimal UI
+            const viewport = document.querySelector('meta[name=viewport]');
+            if (viewport) {
+                const newContent = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui';
+                if (viewport.content !== newContent) {
+                    viewport.content = newContent;
+                }
+            }
+            
+            // Force the page to take full height
+            document.documentElement.style.height = '100%';
+            document.body.style.height = '100%';
+            document.body.style.overflow = 'hidden';
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            
+            // Set specific height for iOS
+            const realViewportHeight = window.innerHeight;
+            document.body.style.height = realViewportHeight + 'px';
+            
+            // Multiple attempts to hide address bar
+            const hideAddressBar = () => {
+                window.scrollTo(0, 1);
+                if (window.pageYOffset !== 1) {
+                    setTimeout(hideAddressBar, 100);
+                }
+            };
+            
+            setTimeout(hideAddressBar, 100);
+            setTimeout(hideAddressBar, 300);
+            setTimeout(hideAddressBar, 500);
+            
+            // Trigger resize events
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+            
+            console.log('iOS fullscreen completed, viewport height:', realViewportHeight);
         }
         
         // Simulate fullscreen for mobile browsers

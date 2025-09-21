@@ -363,12 +363,18 @@ class InfiniteRunner {
         // Get device pixel ratio for high-DPI displays
         const dpr = window.devicePixelRatio || 1;
         
-        // Set display size (CSS pixels)
+        // Set display size (CSS pixels) with mobile optimization
         let displayWidth, displayHeight;
         if (window.innerWidth <= 768) {
-            // Mobile: full screen
-            displayWidth = window.innerWidth;
-            displayHeight = window.innerHeight;
+            // Mobile: smaller canvas to leave room for UI
+            displayWidth = Math.min(window.innerWidth - 20, window.innerWidth * 0.9);
+            if (window.innerHeight <= 500) {
+                // Landscape mobile - very conservative height
+                displayHeight = Math.min(window.innerHeight * 0.6, 250);
+            } else {
+                // Portrait mobile
+                displayHeight = Math.min(window.innerHeight * 0.5, 400);
+            }
         } else {
             // Desktop: fixed size
             displayWidth = Math.min(1200, window.innerWidth - 40);
@@ -651,25 +657,20 @@ class InfiniteRunner {
     }
     
     setupDifficultySelection() {
-        // Set up difficulty selection buttons
-        const difficultyButtons = document.querySelectorAll('.difficulty-btn');
+        // Set up difficulty dropdown
+        const difficultySelect = document.getElementById('difficultySelect');
         
-        difficultyButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove selected class from all buttons
-                difficultyButtons.forEach(b => b.classList.remove('selected'));
-                
-                // Add selected class to clicked button
-                btn.classList.add('selected');
-                
-                // Update difficulty
-                this.difficulty = btn.dataset.difficulty;
+        if (difficultySelect) {
+            difficultySelect.addEventListener('change', () => {
+                // Update difficulty based on dropdown selection
+                this.difficulty = difficultySelect.value;
                 console.log('Difficulty set to:', this.difficultySettings[this.difficulty].name);
             });
-        });
-        
-        // Set default difficulty
-        this.difficulty = 'easy';
+            
+            // Set default difficulty
+            difficultySelect.value = 'easy';
+            this.difficulty = 'easy';
+        }
     }
     
     handleJump() {
