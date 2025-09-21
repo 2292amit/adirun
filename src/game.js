@@ -365,18 +365,13 @@ class InfiniteRunner {
         
         // Set display size (CSS pixels) with mobile optimization
         let displayWidth, displayHeight;
-        if (window.innerWidth <= 768) {
-            // Mobile: smaller canvas to leave room for UI
+        
+        if (window.innerWidth <= 768 && window.innerHeight > window.innerWidth) {
+            // Portrait mobile only
             displayWidth = Math.min(window.innerWidth - 20, window.innerWidth * 0.9);
-            if (window.innerHeight <= 500) {
-                // Landscape mobile - very conservative height
-                displayHeight = Math.min(window.innerHeight * 0.6, 250);
-            } else {
-                // Portrait mobile
-                displayHeight = Math.min(window.innerHeight * 0.5, 400);
-            }
+            displayHeight = Math.min(window.innerHeight * 0.7, 400);
         } else {
-            // Desktop: fixed size
+            // Desktop and landscape: full size
             displayWidth = Math.min(1200, window.innerWidth - 40);
             displayHeight = Math.min(600, window.innerHeight - 40);
         }
@@ -709,7 +704,12 @@ class InfiniteRunner {
         this.gameState = 'playing';
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
-        document.getElementById('startScreen').classList.add('hidden');
+        
+        // Hide start screen and show game
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        if (startScreen) startScreen.classList.add('hidden');
+        if (gameOverScreen) gameOverScreen.classList.add('hidden');
         document.body.classList.add('playing'); // Show mobile controls
         
         // Resume audio context if needed (required for mobile browsers)
@@ -727,7 +727,12 @@ class InfiniteRunner {
         this.gameState = 'playing';
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
-        document.getElementById('gameOverScreen').classList.add('hidden');
+        
+        // Hide all menu screens
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        if (startScreen) startScreen.classList.add('hidden');
+        if (gameOverScreen) gameOverScreen.classList.add('hidden');
         document.body.classList.add('playing'); // Show mobile controls
         
         // Restart background music

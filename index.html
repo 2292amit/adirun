@@ -14,7 +14,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Adi's Running Game</title>
-    <link rel="stylesheet" href="src/styles.css?v=1726853999">
+    <link rel="stylesheet" href="src/styles.css?v=1726854950">
     <style>
         /* Mobile canvas sizing to ensure UI fits */
         @media (max-width: 768px) {
@@ -97,146 +97,7 @@
             }
         }
         
-        /* Force landscape fixes - inline to bypass cache */
-        @media (max-height: 500px) and (orientation: landscape) {
-            #gameCanvas {
-                max-height: 60vh !important;
-                max-width: 85vw !important;
-            }
-            
-            #gameContainer {
-                padding: 5px !important;
-                justify-content: flex-start !important;
-                align-items: center !important;
-                overflow-y: auto !important;
-            }
-            
-            #startScreen, #gameOverScreen {
-                padding: 3px !important;
-                margin: 0 !important;
-                max-height: 95vh !important;
-                max-width: 100% !important;
-                overflow-y: auto !important;
-                position: relative !important;
-                top: 0 !important;
-                bottom: auto !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                align-items: center !important;
-            }
-            
-            .difficulty-selection {
-                margin: 8px 0 !important;
-                width: 100% !important;
-            }
-            
-            .difficulty-label {
-                font-size: 14px !important;
-                margin-right: 5px !important;
-            }
-            
-            .difficulty-dropdown {
-                font-size: 12px !important;
-                padding: 6px 8px !important;
-                min-width: 180px !important;
-            }
-            
-            #startScreen h1 {
-                font-size: 1.1em !important;
-                margin: 2px 0 !important;
-            }
-            
-            #startScreen p {
-                font-size: 11px !important;
-                margin: 2px 0 !important;
-            }
-            
-            button {
-                padding: 4px 10px !important;
-                font-size: 11px !important;
-                margin: 2px !important;
-            }
-            
-            .fullscreen-btn {
-                padding: 3px 8px !important;
-                font-size: 10px !important;
-            }
-            
-            body.playing .mobile-controls {
-                bottom: 3px !important;
-                left: 5px !important;
-                right: 5px !important;
-                background: rgba(0, 0, 0, 0.5) !important;
-                border-radius: 10px !important;
-                padding: 5px !important;
-                backdrop-filter: blur(3px) !important;
-            }
-            
-            body.playing .control-btn {
-                width: 45px !important;
-                height: 45px !important;
-                font-size: 14px !important;
-            }
-            
-            body.playing .jump-btn {
-                width: 70px !important;
-                height: 45px !important;
-                font-size: 12px !important;
-            }
-            
-            body.playing .game-fullscreen-btn, 
-            body.playing .sound-toggle-btn {
-                width: 35px !important;
-                height: 35px !important;
-                font-size: 12px !important;
-            }
-        }
         
-        /* Very short landscape screens - ultra compact */
-        @media (max-height: 400px) and (orientation: landscape) {
-            #startScreen, #gameOverScreen {
-                max-height: 98vh !important;
-                padding: 2px !important;
-                font-size: 10px !important;
-            }
-            
-            #startScreen h1 {
-                font-size: 0.9em !important;
-                margin: 1px 0 !important;
-            }
-            
-            #startScreen p {
-                font-size: 9px !important;
-                margin: 1px 0 !important;
-            }
-            
-            .difficulty-selection {
-                margin: 5px 0 !important;
-            }
-            
-            .difficulty-label {
-                font-size: 12px !important;
-                margin-right: 3px !important;
-            }
-            
-            .difficulty-dropdown {
-                font-size: 10px !important;
-                padding: 4px 6px !important;
-                min-width: 150px !important;
-            }
-            
-            button {
-                padding: 3px 8px !important;
-                font-size: 9px !important;
-                margin: 1px !important;
-            }
-            
-            .fullscreen-btn {
-                padding: 2px 6px !important;
-                font-size: 8px !important;
-            }
-        }
         
         /* Portrait mobile specific */
         @media (max-width: 768px) and (orientation: portrait) {
@@ -256,22 +117,16 @@
                 margin-bottom: 0 !important;
             }
             
-            /* Overlay controls on bottom of canvas in portrait - only when playing */
-            body.playing .mobile-controls {
-                bottom: 15vh !important;
-                background: rgba(0, 0, 0, 0.3) !important;
-                border-radius: 15px !important;
-                padding: 10px !important;
-                backdrop-filter: blur(5px) !important;
-            }
+                /* Overlay controls on bottom of canvas in portrait - only when playing */
+                body.playing .mobile-controls {
+                    bottom: 20vh !important; /* Moved up from 15vh to avoid toolbar */
+                    background: rgba(0, 0, 0, 0.3) !important;
+                    border-radius: 15px !important;
+                    padding: 10px !important;
+                    backdrop-filter: blur(5px) !important;
+                }
         }
         
-        /* Landscape mobile - keep controls at bottom - only when playing */
-        @media (max-width: 768px) and (orientation: landscape) {
-            body.playing .mobile-controls {
-                bottom: 10px !important;
-            }
-        }
     </style>
     <link rel="manifest" href="manifest.json">
 </head>
@@ -328,7 +183,7 @@
         </div>
     </div>
     
-    <script src="src/game.js?v=1726854400"></script>
+    <script src="src/game.js?v=1726854900"></script>
     <script>
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {

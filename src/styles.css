@@ -470,7 +470,7 @@ button:active {
 /* Mobile Controls */
 .mobile-controls {
     position: absolute;
-    bottom: 20px;
+    bottom: 60px; /* Moved up from 20px to avoid browser toolbar */
     left: 0;
     right: 0;
     display: none; /* Hidden by default */
