@@ -709,6 +709,7 @@ class InfiniteRunner {
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('startScreen').classList.add('hidden');
+        document.body.classList.add('playing'); // Show mobile controls
         
         // Resume audio context if needed (required for mobile browsers)
         if (this.audioContext && this.audioContext.state === 'suspended') {
@@ -726,6 +727,7 @@ class InfiniteRunner {
         this.gameStartTime = Date.now();
         this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('gameOverScreen').classList.add('hidden');
+        document.body.classList.add('playing'); // Show mobile controls
         
         // Restart background music
         this.startBackgroundMusic();
@@ -1962,6 +1964,7 @@ class InfiniteRunner {
     
     gameOver() {
         this.gameState = 'gameOver';
+        document.body.classList.remove('playing'); // Hide mobile controls
         
         // Stop background music and running sound
         this.stopBackgroundMusic();

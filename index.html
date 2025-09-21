@@ -10,8 +10,45 @@
     <meta name="theme-color" content="#667eea">
     <meta name="msapplication-navbutton-color" content="#667eea">
     <meta name="apple-mobile-web-app-title" content="Adi's Running Game">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Adi's Running Game</title>
-    <link rel="stylesheet" href="src/styles.css?v=1726853600">
+    <link rel="stylesheet" href="src/styles.css?v=1726853999">
+    <style>
+        /* Force landscape fixes - inline to bypass cache */
+        @media (max-height: 500px) and (orientation: landscape) {
+            #startScreen, #gameOverScreen {
+                padding: 5px !important;
+                margin-bottom: 0 !important;
+                max-height: 95vh !important;
+                overflow-y: auto !important;
+            }
+            
+            .difficulty-buttons {
+                flex-direction: row !important;
+                gap: 8px !important;
+                max-width: 100% !important;
+            }
+            
+            .difficulty-btn {
+                flex: 1 !important;
+                max-width: 110px !important;
+                padding: 6px !important;
+            }
+            
+            #startScreen h1 {
+                font-size: 1.2em !important;
+                margin-bottom: 3px !important;
+            }
+            
+            button {
+                padding: 5px 12px !important;
+                font-size: 12px !important;
+                margin: 2px !important;
+            }
+        }
+    </style>
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -74,7 +111,7 @@
         </div>
     </div>
     
-    <script src="src/game.js?v=1726853600"></script>
+    <script src="src/game.js?v=1726853650"></script>
     <script>
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {
@@ -89,75 +126,40 @@
             });
         }
         
-        // Enhanced mobile fullscreen functionality
+        // Simple and reliable fullscreen functionality
         function enterFullscreen() {
-            // For mobile browsers, force immediate simulation since true fullscreen often fails
+            console.log('Entering fullscreen mode...');
+            
+            // For mobile browsers, use immediate simulation
             if (isMobile()) {
                 simulateMobileFullscreen();
                 return;
             }
             
-            // For desktop, try true fullscreen first
-            const canvas = document.getElementById('gameCanvas');
-            const elem = canvas || document.documentElement;
+            // For desktop, try true fullscreen
+            const elem = document.documentElement;
             
-            // Try multiple fullscreen methods with error handling
-            const tryFullscreen = async () => {
-                try {
-                    if (elem.requestFullscreen) {
-                        await elem.requestFullscreen();
-                    } else if (elem.webkitRequestFullscreen) {
-                        await elem.webkitRequestFullscreen();
-                    } else if (elem.mozRequestFullScreen) {
-                        await elem.mozRequestFullScreen();
-                    } else if (elem.msRequestFullscreen) {
-                        await elem.msRequestFullscreen();
-                    } else {
-                        throw new Error('Fullscreen not supported');
-                    }
-                    console.log('Fullscreen activated');
-                } catch (error) {
-                    console.log('Fullscreen failed, trying simulation:', error);
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(e => {
+                    console.log('Fullscreen failed:', e);
                     simulateMobileFullscreen();
-                }
-            };
-            
-            tryFullscreen();
+                });
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.mozRequestFullScreen) {
+                elem.mozRequestFullScreen();
+            } else {
+                simulateMobileFullscreen();
+            }
         }
         
-        // Simulate fullscreen for mobile browsers that don't support true fullscreen
+        // Simulate fullscreen for mobile browsers
         function simulateMobileFullscreen() {
             console.log('Starting mobile fullscreen simulation...');
             
-            // Force scroll to hide address bar (multiple attempts)
-            const hideAddressBar = () => {
-                window.scrollTo(0, 1);
-                if (window.pageYOffset !== 1) {
-                    setTimeout(hideAddressBar, 50);
-                }
-            };
-            
-            hideAddressBar();
-            setTimeout(hideAddressBar, 100);
-            setTimeout(hideAddressBar, 300);
-            setTimeout(hideAddressBar, 500);
-            
-            // Aggressive body styling for fullscreen
-            const body = document.body;
-            const html = document.documentElement;
-            
-            body.style.position = 'fixed';
-            body.style.top = '0';
-            body.style.left = '0';
-            body.style.width = '100vw';
-            body.style.height = '100vh';
-            body.style.height = window.innerHeight + 'px';
-            body.style.overflow = 'hidden';
-            body.style.margin = '0';
-            body.style.padding = '0';
-            
-            html.style.height = '100%';
-            html.style.overflow = 'hidden';
+            // Simple address bar hiding
+            window.scrollTo(0, 1);
+            setTimeout(() => window.scrollTo(0, 1), 100);
             
             // Update viewport for minimal UI
             const viewport = document.querySelector('meta[name=viewport]');
@@ -165,31 +167,15 @@
                 viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui';
             }
             
-            // Force multiple resize events
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
+            // Simple body adjustments
+            document.body.style.overflow = 'hidden';
             
-            // iOS Safari specific - try to hide the tab bar
-            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-                // Change status bar style
-                const statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-                if (statusBarMeta) {
-                    statusBarMeta.content = 'black-translucent';
-                }
-                
-                // Try to trigger standalone mode behavior
-                setTimeout(() => {
-                    window.scrollTo(0, 0);
-                    body.style.height = (window.innerHeight + 20) + 'px';
-                    setTimeout(() => {
-                        body.style.height = window.innerHeight + 'px';
-                    }, 100);
-                }, 200);
-            }
+            // Trigger resize to adjust canvas
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 200);
             
             console.log('Mobile fullscreen simulation completed');
-            console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
         }
         
         // Make enterFullscreen globally accessible

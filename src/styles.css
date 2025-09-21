@@ -256,6 +256,7 @@ button:active {
         padding: 20px;
         width: 90%;
         max-width: 400px;
+        margin-bottom: 60px; /* Reduced space for mobile controls */
     }
     
     #startScreen h1 {
@@ -275,91 +276,59 @@ button:active {
 /* Landscape mobile */
 @media (max-height: 500px) and (orientation: landscape) {
     #startScreen, #gameOverScreen {
-        padding: 15px;
-        font-size: 14px;
+        padding: 5px;
+        font-size: 12px;
+        margin-bottom: 0; /* Remove margin for landscape */
+        max-height: 95vh; /* Limit height to fit screen */
+        overflow-y: auto; /* Allow scrolling if needed */
+        position: relative;
+        top: 0;
     }
     
     #startScreen h1 {
-        font-size: 1.5em;
-        margin-bottom: 10px;
+        font-size: 1.3em;
+        margin-bottom: 5px;
     }
     
     #gameOverScreen h2 {
-        font-size: 1.2em;
-        margin-bottom: 10px;
+        font-size: 1.1em;
+        margin-bottom: 5px;
     }
     
     button {
-        padding: 8px 20px;
-        font-size: 14px;
-        margin-top: 10px;
+        padding: 6px 16px;
+        font-size: 13px;
+        margin: 3px;
     }
     
-    /* Improve mobile controls for landscape */
-    .mobile-controls {
+    /* Mobile controls for landscape */
+    body.playing .mobile-controls {
         bottom: 10px;
         padding: 0 15px;
     }
     
-    .control-btn {
+    body.playing .control-btn {
         width: 50px;
         height: 50px;
         font-size: 16px;
     }
     
-    .jump-btn {
+    body.playing .jump-btn {
         width: 80px;
         height: 50px;
         font-size: 14px;
     }
     
-    .game-fullscreen-btn, 
-    .sound-toggle-btn {
+    body.playing .game-fullscreen-btn, 
+    body.playing .sound-toggle-btn {
         width: 40px;
         height: 40px;
         font-size: 14px;
     }
     
-    .controls-left,
-    .controls-right {
+    body.playing .controls-left,
+    body.playing .controls-right {
         gap: 10px;
-    }
-    
-    .timer-display {
-        top: 10px;
-        font-size: 16px;
-    }
-}
-
-/* Very short screens (landscape phones) */
-@media (max-height: 400px) {
-    .mobile-controls {
-        bottom: 5px;
-        padding: 0 10px;
-    }
-    
-    .control-btn {
-        width: 45px;
-        height: 45px;
-        font-size: 14px;
-    }
-    
-    .jump-btn {
-        width: 70px;
-        height: 45px;
-        font-size: 12px;
-    }
-    
-    .game-fullscreen-btn, 
-    .sound-toggle-btn {
-        width: 35px;
-        height: 35px;
-        font-size: 12px;
-    }
-    
-    .controls-left,
-    .controls-right {
-        gap: 8px;
     }
     
     .timer-display {
@@ -367,38 +336,154 @@ button:active {
         font-size: 14px;
     }
     
-    /* Adjust difficulty selection for small screens */
+    .difficulty-selection {
+        margin: 10px 0;
+    }
+    
+    .difficulty-selection h3 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
     .difficulty-buttons {
-        max-width: 200px;
+        max-width: 100%;
+        gap: 6px;
+        flex-direction: row; /* Horizontal layout for landscape */
+        justify-content: center;
     }
     
     .difficulty-btn {
         padding: 8px;
+        flex: 1;
+        max-width: 120px;
     }
     
     .difficulty-name {
-        font-size: 12px;
+        font-size: 13px;
     }
     
     .difficulty-desc {
+        font-size: 10px;
+    }
+    
+    .fullscreen-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Very short screens (landscape phones) */
+@media (max-height: 400px) {
+    #startScreen, #gameOverScreen {
+        padding: 8px;
+        margin-bottom: 0; /* No margin for very short screens */
+        max-height: 85vh; /* Even more compact */
+    }
+    
+    #startScreen h1 {
+        font-size: 1.1em;
+        margin-bottom: 3px;
+    }
+    
+    #gameOverScreen h2 {
+        font-size: 1.0em;
+        margin-bottom: 3px;
+    }
+    
+    button {
+        padding: 4px 12px;
+        font-size: 12px;
+        margin: 2px;
+    }
+    
+    body.playing .mobile-controls {
+        bottom: 5px;
+        padding: 0 10px;
+    }
+    
+    body.playing .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 14px;
+    }
+    
+    body.playing .jump-btn {
+        width: 70px;
+        height: 45px;
+        font-size: 12px;
+    }
+    
+    body.playing .game-fullscreen-btn, 
+    body.playing .sound-toggle-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 12px;
+    }
+    
+    body.playing .controls-left,
+    body.playing .controls-right {
+        gap: 8px;
+    }
+    
+    .timer-display {
+        top: 3px;
+        font-size: 12px;
+    }
+    
+    .difficulty-selection {
+        margin: 5px 0;
+    }
+    
+    .difficulty-selection h3 {
+        font-size: 14px;
+        margin-bottom: 5px;
+    }
+    
+    /* Adjust difficulty selection for small screens */
+    .difficulty-buttons {
+        max-width: 100%;
+        gap: 4px;
+        flex-direction: row; /* Horizontal layout for very short screens */
+        justify-content: center;
+    }
+    
+    .difficulty-btn {
+        padding: 6px;
+        flex: 1;
+        max-width: 100px;
+    }
+    
+    .difficulty-name {
+        font-size: 11px;
+    }
+    
+    .difficulty-desc {
+        font-size: 9px;
+    }
+    
+    .fullscreen-btn {
+        padding: 4px 8px;
         font-size: 10px;
     }
 }
 
 /* Mobile Controls */
 .mobile-controls {
-    position: fixed;
+    position: absolute;
     bottom: 20px;
     left: 0;
     right: 0;
-    display: flex;
+    display: none; /* Hidden by default */
     justify-content: space-between;
     align-items: center;
     padding: 0 20px;
     pointer-events: none;
     z-index: 1000;
-    /* Ensure it's always visible even in fullscreen modes */
-    max-height: 100px;
+}
+
+/* Show mobile controls when game is playing */
+body.playing .mobile-controls {
+    display: flex;
 }
 
 .controls-left,
