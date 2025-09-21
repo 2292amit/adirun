@@ -4,9 +4,32 @@ class InfiniteRunner {
         this.ctx = this.canvas.getContext('2d');
         
         // Game state
-        this.gameState = 'start'; // 'start', 'playing', 'gameOver'
+        this.gameState = 'menu'; // 'menu', 'playing', 'gameOver'
         this.score = 0;
         this.highScore = parseInt(localStorage.getItem('highScore')) || 0;
+        
+        // Timer system (3 minutes = 180 seconds)
+        this.gameTimeLimit = 180; // 3 minutes in seconds
+        this.gameTimeRemaining = this.gameTimeLimit;
+        this.gameStartTime = 0;
+        
+        // Distance tracking for scoring
+        this.totalDistance = 0;
+        this.maxDistanceReached = 0; // Track furthest point reached
+        this.coinScore = 0; // Separate tracking for coin points
+        
+        // Manual world movement
+        this.worldSpeed = 0; // Current world movement speed
+        this.maxWorldSpeed = 8; // Maximum world movement speed
+        
+        // Death animation
+        this.deathAnimation = {
+            active: false,
+            timer: 0,
+            duration: 60, // frames
+            rotation: 0,
+            scale: 1
+        };
         
         // Game settings
         this.gravity = 0.8;
@@ -43,15 +66,29 @@ class InfiniteRunner {
         this.obstacles = [];
         this.coins = [];
         this.particles = [];
+        this.scorePopups = []; // Floating score text
         this.clouds = [];
         this.platforms = []; // Aerial platforms
         this.holes = []; // Ground holes
+        this.ramps = []; // Ground ramps for vertical engagement
+        this.blocks = []; // Jumpable blocks
+        this.blockTimer = 0;
+        this.birds = []; // Flying bird enemies
+        this.birdTimer = 0;
+        this.snails = []; // Ground snail enemies
+        this.snailTimer = 0;
+        this.watches = []; // Time extension powerups
+        this.watchTimer = 0;
         this.scheduledPlatforms = []; // Platforms scheduled to help with obstacles
         
         // Background
         this.backgroundX = 0;
         this.mountainX = 0;
         this.worldOffset = 0; // World movement for progressive speed
+        
+        // Day-night cycle system
+        this.timeOfDay = 0; // 0 = dawn, 0.25 = day, 0.5 = dusk, 0.75 = night, 1 = dawn again
+        this.dayNightSpeed = 0.00008; // Much slower - complete cycle takes ~12,500 frames (~3.5 minutes at 60fps)
         
         // Setup canvas now that ground height is defined
         this.setupCanvas();
@@ -62,6 +99,7 @@ class InfiniteRunner {
         this.cloudTimer = 0;
         this.platformTimer = 0;
         this.holeTimer = 0;
+        this.rampTimer = 0;
         
         // Assets loading
         this.assetsLoaded = false;
@@ -126,9 +164,11 @@ class InfiniteRunner {
         this.heroImage = new Image();
         this.coinImage = new Image();
         this.hurdleImage = new Image();
+        this.birdImage = new Image();
+        this.snailImage = new Image();
         
         let loadedAssets = 0;
-        const totalAssets = 3;
+        const totalAssets = 5;
         
         const onAssetLoad = () => {
             loadedAssets++;
@@ -153,15 +193,21 @@ class InfiniteRunner {
         this.heroImage.onload = onAssetLoad;
         this.coinImage.onload = onAssetLoad;
         this.hurdleImage.onload = onAssetLoad;
+        this.birdImage.onload = onAssetLoad;
+        this.snailImage.onload = onAssetLoad;
         
         this.heroImage.onerror = () => onAssetError('hero.png');
         this.coinImage.onerror = () => onAssetError('coin.png');
         this.hurdleImage.onerror = () => onAssetError('hurdle.png');
+        this.birdImage.onerror = () => onAssetError('bird.png');
+        this.snailImage.onerror = () => onAssetError('snail.png');
         
         const timestamp = Date.now();
         this.heroImage.src = `icons/hero.png?v=${timestamp}`;
         this.coinImage.src = `icons/coin.png?v=${timestamp}`;
         this.hurdleImage.src = `icons/hurdle.png?v=${timestamp}`;
+        this.birdImage.src = `icons/bird.png?v=${timestamp}`;
+        this.snailImage.src = `icons/snail.png?v=${timestamp}`;
         
         // Initialize background elements
         this.initializeBackground();
@@ -207,30 +253,139 @@ class InfiniteRunner {
     }
     
     setupInput() {
+        // Track key states for smooth movement
+        this.keys = {
+            left: false,
+            right: false,
+            jump: false
+        };
+
         // Keyboard input
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.code === 'ArrowUp') {
                 e.preventDefault();
-                this.handleJump();
+                if (this.gameState === 'playing') {
+                    this.handleJump();
+                } else if (this.gameState === 'menu') {
+                    this.startGame();
+                } else if (this.gameState === 'gameOver') {
+                    this.resetGame();
+                }
+            } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                e.preventDefault();
+                this.keys.left = true;
+            } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                e.preventDefault();
+                this.keys.right = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+                this.keys.left = false;
+            } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+                this.keys.right = false;
             }
         });
         
-        // Touch input for mobile
+        // Touch input for mobile - now only for menu/game over states
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            this.handleJump();
+            if (this.gameState === 'menu') {
+                this.startGame();
+            } else if (this.gameState === 'gameOver') {
+                this.resetGame();
+            }
         });
         
-        // Mouse input
+        // Mouse input - now only for menu/game over states
         this.canvas.addEventListener('mousedown', (e) => {
             e.preventDefault();
-            this.handleJump();
+            if (this.gameState === 'menu') {
+                this.startGame();
+            } else if (this.gameState === 'gameOver') {
+                this.resetGame();
+            }
         });
         
         // Prevent scrolling on mobile
         document.addEventListener('touchmove', (e) => {
             e.preventDefault();
         }, { passive: false });
+        
+        // Mobile control buttons
+        this.setupMobileControls();
+    }
+    
+    setupMobileControls() {
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const jumpBtn = document.getElementById('jumpBtn');
+        
+        if (leftBtn) {
+            leftBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.keys.left = true;
+            });
+            leftBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.keys.left = false;
+            });
+            leftBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                this.keys.left = true;
+            });
+            leftBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                this.keys.left = false;
+            });
+        }
+        
+        if (rightBtn) {
+            rightBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.keys.right = true;
+            });
+            rightBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.keys.right = false;
+            });
+            rightBtn.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                this.keys.right = true;
+            });
+            rightBtn.addEventListener('mouseup', (e) => {
+                e.preventDefault();
+                this.keys.right = false;
+            });
+        }
+        
+        if (jumpBtn) {
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (this.gameState === 'playing') {
+                    this.handleJump();
+                }
+            });
+            jumpBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (this.gameState === 'playing') {
+                    this.handleJump();
+                }
+            });
+        }
+        
+        // Game fullscreen button (during gameplay)
+        const gameFullscreenBtn = document.getElementById('gameFullscreenBtn');
+        if (gameFullscreenBtn) {
+            gameFullscreenBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Call the global enterFullscreen function
+                if (window.enterFullscreen) {
+                    window.enterFullscreen();
+                }
+            });
+        }
     }
     
     setupUI() {
@@ -246,7 +401,7 @@ class InfiniteRunner {
     }
     
     handleJump() {
-        if (this.gameState === 'start') {
+        if (this.gameState === 'menu') {
             this.startGame();
         } else if (this.gameState === 'playing') {
             // Allow jumping if grounded OR if air jumps are available
@@ -274,18 +429,25 @@ class InfiniteRunner {
     
     startGame() {
         this.gameState = 'playing';
+        this.gameStartTime = Date.now();
+        this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('startScreen').classList.add('hidden');
         this.resetGame();
     }
     
     restartGame() {
         this.gameState = 'playing';
+        this.gameStartTime = Date.now();
+        this.gameTimeRemaining = this.gameTimeLimit;
         document.getElementById('gameOverScreen').classList.add('hidden');
         this.resetGame();
     }
     
     resetGame() {
         this.score = 0;
+        this.coinScore = 0;
+        this.totalDistance = 0;
+        this.maxDistanceReached = 0;
         this.gameSpeed = 5; // Reset to faster initial speed
         this.player.y = this.displayHeight - this.groundHeight - this.player.height;
         this.player.baseY = this.player.y;
@@ -301,15 +463,34 @@ class InfiniteRunner {
         this.obstacles = [];
         this.coins = [];
         this.particles = [];
+        this.scorePopups = [];
         this.platforms = [];
         this.holes = [];
+        this.ramps = [];
+        this.blocks = [];
+        this.birds = [];
+        this.snails = [];
+        this.watches = [];
         this.scheduledPlatforms = [];
         this.obstacleTimer = 0;
         this.coinTimer = 0;
         this.platformTimer = 0;
         this.holeTimer = 0;
+        this.rampTimer = 0;
+        this.blockTimer = 0;
+        this.birdTimer = 0;
+        this.snailTimer = 0;
+        this.watchTimer = 0;
         this.backgroundX = 0;
         this.worldOffset = 0;
+        this.timeOfDay = 0; // Reset to dawn
+        
+        // Reset death animation
+        this.deathAnimation.active = false;
+        this.deathAnimation.timer = 0;
+        this.deathAnimation.rotation = 0;
+        this.deathAnimation.scale = 1;
+        
         this.initializeBackground();
     }
     
@@ -328,29 +509,130 @@ class InfiniteRunner {
     update() {
         if (this.gameState !== 'playing' || !this.assetsLoaded) return;
         
+        // Update timer
+        this.updateTimer();
+        
         this.updatePlayer();
         this.updateObstacles();
         this.updateCoins();
         this.updatePlatforms();
         this.updateHoles();
+        this.updateRamps();
+        this.updateBlocks();
+        this.updateBirds();
+        this.updateSnails();
+        this.updateWatches();
         this.updateParticles();
+        this.updateScorePopups();
         this.updateBackground();
+        this.updateDayNightCycle();
         this.updateGameSpeed();
         this.spawnObjects();
         this.checkCollisions();
         this.updateScore();
     }
     
+    updateTimer() {
+        // Calculate elapsed time
+        const elapsedTime = (Date.now() - this.gameStartTime) / 1000; // Convert to seconds
+        this.gameTimeRemaining = Math.max(0, this.gameTimeLimit - elapsedTime);
+        
+        // Update timer display
+        this.updateTimerDisplay();
+        
+        // Check if time is up
+        if (this.gameTimeRemaining <= 0) {
+            this.gameOver();
+        }
+    }
+    
+    updateTimerDisplay() {
+        const minutes = Math.floor(this.gameTimeRemaining / 60);
+        const seconds = Math.floor(this.gameTimeRemaining % 60);
+        const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        const timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent = timeString;
+            
+            // Change color when time is running low
+            if (this.gameTimeRemaining <= 30) {
+                timerElement.style.color = '#FF6B6B'; // Red when < 30 seconds
+            } else if (this.gameTimeRemaining <= 60) {
+                timerElement.style.color = '#FFD93D'; // Yellow when < 1 minute
+            } else {
+                timerElement.style.color = 'white'; // Normal white
+            }
+        }
+    }
+    
     updatePlayer() {
+        // Handle death animation
+        if (this.deathAnimation.active) {
+            this.deathAnimation.timer++;
+            this.deathAnimation.rotation += 0.3; // Spinning effect
+            this.deathAnimation.scale = Math.max(0.1, 1 - (this.deathAnimation.timer / this.deathAnimation.duration));
+            
+            // End game after animation
+            if (this.deathAnimation.timer >= this.deathAnimation.duration) {
+                this.gameOver();
+                return;
+            }
+            return; // Don't update other player logic during death
+        }
+        
         // Update animation time and cooldowns - increased for more lively animation
         this.player.animationTime += 0.3; // Increased from 0.2 to 0.3
         if (this.player.jumpCooldown > 0) {
             this.player.jumpCooldown--;
         }
         
-        // Progressive speed increase based on time, not accumulation
-        const gameTime = this.player.animationTime / 60; // Convert to seconds
-        this.worldOffset = Math.min(gameTime * 0.01, 1); // Very gradual increase, max +1 speed
+        // Handle manual world movement based on key states
+        this.worldSpeed = 0; // Reset world speed each frame
+        
+        // Check if movement would cause collision with blocks
+        let canMoveLeft = true;
+        let canMoveRight = true;
+        
+        // Check for block collisions that would prevent movement
+        this.blocks.forEach(block => {
+            // Check if player would collide with block if moving
+            const playerRight = this.player.x + this.player.width;
+            const playerLeft = this.player.x;
+            const playerTop = this.player.y;
+            const playerBottom = this.player.y + this.player.height;
+            
+            const blockLeft = block.x;
+            const blockRight = block.x + block.width;
+            const blockTop = block.y;
+            const blockBottom = block.y + block.height;
+            
+            // Check vertical overlap (player and block are at same height)
+            const verticalOverlap = playerBottom > blockTop + 5 && playerTop < blockBottom - 5;
+            
+            if (verticalOverlap) {
+                // Check horizontal proximity for movement blocking
+                if (playerRight >= blockLeft - 10 && playerRight <= blockLeft + 5) {
+                    canMoveRight = false; // Block is directly in front when moving right
+                }
+                if (playerLeft <= blockRight + 10 && playerLeft >= blockRight - 5) {
+                    canMoveLeft = false; // Block is directly in front when moving left
+                }
+            }
+        });
+        
+        if (this.keys.left && canMoveLeft) {
+            this.worldSpeed = this.maxWorldSpeed; // Move world right (player appears to move left)
+        }
+        if (this.keys.right && canMoveRight) {
+            this.worldSpeed = -this.maxWorldSpeed; // Move world left (player appears to move right)
+            
+            // Track distance only when moving forward beyond previous maximum
+            this.totalDistance += Math.abs(this.maxWorldSpeed);
+            if (this.totalDistance > this.maxDistanceReached) {
+                this.maxDistanceReached = this.totalDistance;
+            }
+        }
         
         // Apply gravity
         this.player.velocityY += this.gravity;
@@ -365,70 +647,162 @@ class InfiniteRunner {
             this.player.jumping = false;
             this.player.grounded = true;
             this.player.airJumpsLeft = 1; // Reset air jumps when landing
-            
-            // Return player to original horizontal position when landing
-            if (this.player.x > 120) {
-                this.player.x += (120 - this.player.x) * 0.1; // Smooth return to original position
-            }
         } else {
             this.player.grounded = false;
             this.player.runBounce = 0; // Reset bounce when not grounded
         }
         
-        // Running animation (only when grounded) - but don't modify actual Y position for physics
-        if (this.player.grounded && this.gameState === 'playing') {
+        // Running animation (only when grounded AND moving) - but don't modify actual Y position for physics
+        if (this.player.grounded && this.gameState === 'playing' && (this.keys.left || this.keys.right)) {
             // Create bouncing effect for running - increased speed for more lively animation
             this.player.runCycle += 0.5; // Increased from 0.3 to 0.5 for faster animation
             this.player.runBounce = Math.sin(this.player.runCycle) * 4; // Increased bounce from 3 to 4 pixels
             // Don't modify this.player.y - use runBounce in rendering instead
+        } else {
+            // Reset running animation when not moving
+            this.player.runBounce = 0;
+            // Keep runCycle but don't advance it when not moving
         }
     }
     
     updateObstacles() {
-        const totalSpeed = this.gameSpeed + this.worldOffset;
+        // Move obstacles based on manual world movement
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obstacle = this.obstacles[i];
-            obstacle.x -= totalSpeed;
+            obstacle.x += this.worldSpeed; // Move with world
             
-            if (obstacle.x + obstacle.width < 0) {
+            // Remove obstacles that are off-screen
+            if (obstacle.x + obstacle.width < 0 || obstacle.x > this.displayWidth + 200) {
                 this.obstacles.splice(i, 1);
             }
         }
     }
     
     updateCoins() {
-        const totalSpeed = this.gameSpeed + this.worldOffset;
+        // Move coins based on manual world movement
         for (let i = this.coins.length - 1; i >= 0; i--) {
             const coin = this.coins[i];
-            coin.x -= totalSpeed;
+            coin.x += this.worldSpeed; // Move with world
             coin.rotation += 0.1;
+            coin.pulseTime += 0.15; // For pulsing effect
             
-            if (coin.x + coin.size < 0) {
+            // Remove coins that are off-screen
+            if (coin.x + coin.size < 0 || coin.x > this.displayWidth + 200) {
                 this.coins.splice(i, 1);
             }
         }
     }
     
     updatePlatforms() {
-        const totalSpeed = this.gameSpeed + this.worldOffset;
+        // Move platforms based on manual world movement
         for (let i = this.platforms.length - 1; i >= 0; i--) {
             const platform = this.platforms[i];
-            platform.x -= totalSpeed;
+            platform.x += this.worldSpeed; // Move with world
             
-            if (platform.x + platform.width < 0) {
+            // Remove platforms that are off-screen
+            if (platform.x + platform.width < 0 || platform.x > this.displayWidth + 200) {
                 this.platforms.splice(i, 1);
             }
         }
     }
     
     updateHoles() {
-        const totalSpeed = this.gameSpeed + this.worldOffset;
+        // Move holes based on manual world movement
         for (let i = this.holes.length - 1; i >= 0; i--) {
             const hole = this.holes[i];
-            hole.x -= totalSpeed;
+            hole.x += this.worldSpeed; // Move with world
             
-            if (hole.x + hole.width < 0) {
+            // Remove holes that are off-screen
+            if (hole.x + hole.width < 0 || hole.x > this.displayWidth + 200) {
                 this.holes.splice(i, 1);
+            }
+        }
+    }
+    
+    updateRamps() {
+        // Move ramps based on manual world movement
+        for (let i = this.ramps.length - 1; i >= 0; i--) {
+            const ramp = this.ramps[i];
+            ramp.x += this.worldSpeed; // Move with world
+            
+            // Remove ramps that are off-screen
+            if (ramp.x + ramp.width < 0 || ramp.x > this.displayWidth + 200) {
+                this.ramps.splice(i, 1);
+            }
+        }
+    }
+    
+    updateBlocks() {
+        // Move blocks based on manual world movement
+        for (let i = this.blocks.length - 1; i >= 0; i--) {
+            const block = this.blocks[i];
+            block.x += this.worldSpeed; // Move with world
+            
+            // Remove blocks that are off-screen
+            if (block.x + block.width < 0 || block.x > this.displayWidth + 200) {
+                this.blocks.splice(i, 1);
+            }
+        }
+    }
+    
+    updateBirds() {
+        // Move birds from right to left, speed increases with game progress
+        const baseSpeed = 2; // Base speed
+        const progressSpeed = Math.min(this.gameSpeed * 0.3, 4); // Speed based on game progress
+        const totalBirdSpeed = baseSpeed + progressSpeed;
+        
+        for (let i = this.birds.length - 1; i >= 0; i--) {
+            const bird = this.birds[i];
+            bird.x -= totalBirdSpeed; // Always move left
+            bird.x += this.worldSpeed; // Also affected by world movement
+            
+            // Simple wing flapping animation
+            bird.animationTime += 0.3;
+            bird.wingOffset = Math.sin(bird.animationTime) * 3;
+            
+            // Remove birds that are off-screen
+            if (bird.x + bird.width < -50) {
+                this.birds.splice(i, 1);
+            }
+        }
+    }
+    
+    updateSnails() {
+        // Move snails slowly from right to left
+        const snailSpeed = 1; // Very slow movement
+        
+        for (let i = this.snails.length - 1; i >= 0; i--) {
+            const snail = this.snails[i];
+            snail.x -= snailSpeed; // Always move left slowly
+            snail.x += this.worldSpeed; // Also affected by world movement
+            
+            // Simple shell animation
+            snail.animationTime += 0.1;
+            snail.shellOffset = Math.sin(snail.animationTime) * 2;
+            
+            // Remove snails that are off-screen
+            if (snail.x + snail.width < -50) {
+                this.snails.splice(i, 1);
+            }
+        }
+    }
+    
+    updateWatches() {
+        // Move watches with world movement (they float in place)
+        for (let i = this.watches.length - 1; i >= 0; i--) {
+            const watch = this.watches[i];
+            watch.x += this.worldSpeed; // Move with world
+            
+            // Gentle floating animation
+            watch.animationTime += 0.15;
+            watch.floatOffset = Math.sin(watch.animationTime) * 8;
+            
+            // Gentle glowing animation
+            watch.glowIntensity = 0.5 + Math.sin(watch.animationTime * 2) * 0.3;
+            
+            // Remove watches that are off-screen
+            if (watch.x + watch.width < -50 || watch.x > this.displayWidth + 200) {
+                this.watches.splice(i, 1);
             }
         }
     }
@@ -447,15 +821,18 @@ class InfiniteRunner {
     }
     
     updateBackground() {
-        // Add progressive speed to background movement
-        const totalSpeed = this.gameSpeed + this.worldOffset;
-        this.backgroundX -= totalSpeed * 0.5;
+        // Move background based on manual world movement
+        this.backgroundX += this.worldSpeed * 0.5;
         
         // Update trees
         this.trees.forEach(tree => {
-            tree.x -= this.gameSpeed * tree.speed;
+            tree.x += this.worldSpeed * tree.speed;
             if (tree.x + tree.width < 0) {
                 tree.x = this.displayWidth + Math.random() * 200;
+                tree.y = this.displayHeight - this.groundHeight - 60 - Math.random() * 40;
+                tree.height = 40 + Math.random() * 30;
+            } else if (tree.x > this.displayWidth + 200) {
+                tree.x = -tree.width - Math.random() * 200;
                 tree.y = this.displayHeight - this.groundHeight - 60 - Math.random() * 40;
                 tree.height = 40 + Math.random() * 30;
             }
@@ -463,28 +840,43 @@ class InfiniteRunner {
         
         // Update mountains
         this.mountains.forEach(mountain => {
-            mountain.x -= this.gameSpeed * mountain.speed;
+            mountain.x += this.worldSpeed * mountain.speed;
             if (mountain.x + mountain.width < 0) {
                 mountain.x = this.displayWidth + Math.random() * 100;
+            } else if (mountain.x > this.displayWidth + 100) {
+                mountain.x = -mountain.width - Math.random() * 100;
             }
         });
         
         // Update hills
         this.hills.forEach(hill => {
-            hill.x -= this.gameSpeed * hill.speed;
+            hill.x += this.worldSpeed * hill.speed;
             if (hill.x + hill.width < 0) {
                 hill.x = this.displayWidth + Math.random() * 150;
+            } else if (hill.x > this.displayWidth + 150) {
+                hill.x = -hill.width - Math.random() * 150;
             }
         });
         
         // Update clouds
         this.clouds.forEach(cloud => {
-            cloud.x -= cloud.speed;
+            cloud.x += this.worldSpeed * cloud.speed;
             if (cloud.x + cloud.size < 0) {
                 cloud.x = this.displayWidth + cloud.size;
                 cloud.y = Math.random() * (this.displayHeight * 0.4);
+            } else if (cloud.x > this.displayWidth + cloud.size) {
+                cloud.x = -cloud.size;
+                cloud.y = Math.random() * (this.displayHeight * 0.4);
             }
         });
+    }
+    
+    updateDayNightCycle() {
+        // Progress the day-night cycle based on game time
+        this.timeOfDay += this.dayNightSpeed;
+        if (this.timeOfDay >= 1) {
+            this.timeOfDay = 0; // Reset cycle
+        }
     }
     
     updateGameSpeed() {
@@ -492,11 +884,19 @@ class InfiniteRunner {
     }
     
     spawnObjects() {
+        // Only spawn objects when moving forward (right key pressed)
+        if (!this.keys.right) return;
+        
         // Smart spawning system to ensure playability
         this.obstacleTimer++;
         this.coinTimer++;
         this.platformTimer++;
         this.holeTimer++;
+        this.rampTimer++;
+        this.blockTimer++;
+        this.birdTimer++;
+        this.snailTimer++;
+        this.watchTimer++;
         
         // Check what's coming up in the next 300-500 pixels to avoid conflicts
         const upcomingObstacles = this.getUpcomingObstacles();
@@ -551,6 +951,46 @@ class InfiniteRunner {
                 this.coinTimer = 0;
             }
         }
+        
+        // Spawn ramps occasionally for vertical engagement
+        const minRampSpacing = 400; // Reduced spacing for more frequent spawning
+        if (this.rampTimer > minRampSpacing) {
+            const canSpawnRamp = this.canSpawnRamp(upcomingObstacles, upcomingHoles, upcomingPlatforms);
+            const randomChance = Math.random() < 0.3;
+            
+            if (canSpawnRamp || randomChance) { // Spawn if strategic OR 30% random chance
+                this.spawnRamp();
+                this.rampTimer = 0;
+            }
+        }
+        
+        // Spawn blocks occasionally
+        const minBlockSpacing = 300;
+        if (this.blockTimer > minBlockSpacing && Math.random() < 0.4) {
+            this.spawnBlock();
+            this.blockTimer = 0;
+        }
+        
+        // Spawn birds at different heights
+        const minBirdSpacing = 200;
+        if (this.birdTimer > minBirdSpacing && Math.random() < 0.3) {
+            this.spawnBird();
+            this.birdTimer = 0;
+        }
+        
+        // Spawn snails on ground
+        const minSnailSpacing = 400;
+        if (this.snailTimer > minSnailSpacing && Math.random() < 0.5) {
+            this.spawnSnail();
+            this.snailTimer = 0;
+        }
+        
+        // Spawn watch powerups rarely
+        const minWatchSpacing = 800; // Very rare
+        if (this.watchTimer > minWatchSpacing && Math.random() < 0.15) {
+            this.spawnWatch();
+            this.watchTimer = 0;
+        }
     }
     
     spawnObstacle() {
@@ -570,12 +1010,46 @@ class InfiniteRunner {
     }
     
     spawnCoin() {
+        // Determine coin type based on probability
+        let multiplier, color, textColor;
+        const rand = Math.random();
+        
+        if (rand < 0.4) { // 40% - 1x coins (most common)
+            multiplier = 1;
+            color = '#FFD700'; // Gold
+            textColor = '#000000'; // Black text
+        } else if (rand < 0.65) { // 25% - 2x coins
+            multiplier = 2;
+            color = '#00FF00'; // Green
+            textColor = '#000000'; // Black text
+        } else if (rand < 0.8) { // 15% - 3x coins
+            multiplier = 3;
+            color = '#00BFFF'; // Blue
+            textColor = '#FFFFFF'; // White text
+        } else if (rand < 0.9) { // 10% - 4x coins
+            multiplier = 4;
+            color = '#FF69B4'; // Pink
+            textColor = '#000000'; // Black text
+        } else if (rand < 0.97) { // 7% - 5x coins
+            multiplier = 5;
+            color = '#9932CC'; // Purple
+            textColor = '#FFFFFF'; // White text
+        } else { // 3% - -1x penalty coins
+            multiplier = -1;
+            color = '#FF0000'; // Red
+            textColor = '#FFFFFF'; // White text
+        }
+        
         const coin = {
             x: this.displayWidth,
-            y: this.displayHeight - this.groundHeight - 90 - Math.random() * 120, // Adjusted for bigger coin
-            size: 40, // Increased from 30 to 40 for zoom effect
+            y: this.displayHeight - this.groundHeight - 90 - Math.random() * 120,
+            size: 40,
             rotation: 0,
-            collected: false
+            collected: false,
+            multiplier: multiplier,
+            color: color,
+            textColor: textColor,
+            pulseTime: 0 // For visual effects
         };
         this.coins.push(coin);
     }
@@ -600,6 +1074,108 @@ class InfiniteRunner {
             type: 'hole'
         };
         this.holes.push(hole);
+    }
+    
+    spawnRamp() {
+        // Variable ramp sizes for variety
+        const rampTypes = [
+            { width: 80, height: 35 },   // Small ramp
+            { width: 120, height: 50 },  // Medium ramp  
+            { width: 160, height: 70 },  // Large ramp
+            { width: 200, height: 90 }   // Extra large ramp
+        ];
+        
+        const rampType = rampTypes[Math.floor(Math.random() * rampTypes.length)];
+        const rampWidth = rampType.width;
+        const rampHeight = rampType.height;
+        
+        const ramp = {
+            x: this.displayWidth,
+            y: this.displayHeight - this.groundHeight - rampHeight, // Position on ground
+            width: rampWidth,
+            height: rampHeight,
+            type: 'ramp',
+            // For physics calculations
+            slope: rampHeight / rampWidth // Used for ramp physics
+        };
+        this.ramps.push(ramp);
+    }
+    
+    spawnBlock() {
+        // Variable block sizes
+        const blockTypes = [
+            { width: 60, height: 60 },   // Small block
+            { width: 80, height: 80 },   // Medium block
+            { width: 100, height: 60 },  // Wide block
+            { width: 60, height: 100 }   // Tall block
+        ];
+        
+        const blockType = blockTypes[Math.floor(Math.random() * blockTypes.length)];
+        
+        const block = {
+            x: this.displayWidth,
+            y: this.displayHeight - this.groundHeight - blockType.height,
+            width: blockType.width,
+            height: blockType.height,
+            type: 'block'
+        };
+        
+        this.blocks.push(block);
+    }
+    
+    spawnBird() {
+        // Random height for birds (flying at different altitudes)
+        const groundLevel = this.displayHeight - this.groundHeight;
+        const minHeight = 100; // Minimum height above ground
+        const maxHeight = groundLevel - 150; // Maximum height (above player jump reach)
+        const birdY = minHeight + Math.random() * (maxHeight - minHeight);
+        
+        const bird = {
+            x: this.displayWidth + 50, // Start off-screen to the right
+            y: birdY,
+            width: 40,
+            height: 30,
+            type: 'bird',
+            animationTime: 0,
+            wingOffset: 0
+        };
+        
+        this.birds.push(bird);
+    }
+    
+    spawnSnail() {
+        const snail = {
+            x: this.displayWidth + 30, // Start off-screen to the right
+            y: this.displayHeight - this.groundHeight - 25, // On ground
+            width: 35,
+            height: 25,
+            type: 'snail',
+            animationTime: 0,
+            shellOffset: 0
+        };
+        
+        this.snails.push(snail);
+    }
+    
+    spawnWatch() {
+        // Spawn watch powerup at random height (floating in air)
+        const groundLevel = this.displayHeight - this.groundHeight;
+        const minHeight = 150; // Above player reach but not too high
+        const maxHeight = groundLevel - 200;
+        const watchY = minHeight + Math.random() * (maxHeight - minHeight);
+        
+        const watch = {
+            x: this.displayWidth + 30,
+            y: watchY,
+            width: 35,
+            height: 35,
+            type: 'watch',
+            animationTime: 0,
+            floatOffset: 0,
+            glowIntensity: 0.5
+        };
+        
+        this.watches.push(watch);
     }
     
     // Smart spawning helper functions
@@ -674,6 +1250,48 @@ class InfiniteRunner {
         return true;
     }
     
+    canSpawnRamp(upcomingObstacles, upcomingHoles, upcomingPlatforms) {
+        const minDistanceFromObstacle = 200; // Reduced safe distance from obstacles
+        const minDistanceFromHole = 180; // Reduced safe distance from holes
+        const minDistanceFromPlatform = 150; // Reduced safe distance from platforms
+        const strategicDistance = 600; // Distance to look ahead for strategic placement
+        
+        // Don't spawn ramp too close to obstacles
+        for (let obstacle of upcomingObstacles) {
+            if (Math.abs(obstacle.x - this.displayWidth) < minDistanceFromObstacle) {
+                return false;
+            }
+        }
+        
+        // Don't spawn ramp too close to holes
+        for (let hole of upcomingHoles) {
+            if (Math.abs(hole.x - this.displayWidth) < minDistanceFromHole) {
+                return false;
+            }
+        }
+        
+        // Don't spawn ramp too close to platforms
+        for (let platform of upcomingPlatforms) {
+            if (Math.abs(platform.x - this.displayWidth) < minDistanceFromPlatform) {
+                return false;
+            }
+        }
+        
+        // Strategic placement: prefer to place ramps before obstacles or holes for tactical advantage
+        const hasObstacleAhead = upcomingObstacles.some(obstacle => 
+            obstacle.x - this.displayWidth > minDistanceFromObstacle && 
+            obstacle.x - this.displayWidth < strategicDistance
+        );
+        
+        const hasHoleAhead = upcomingHoles.some(hole => 
+            hole.x - this.displayWidth > minDistanceFromHole && 
+            hole.x - this.displayWidth < strategicDistance
+        );
+        
+        // More lenient: spawn if strategic OR if no conflicts (even without strategic reason)
+        return hasObstacleAhead || hasHoleAhead || (upcomingObstacles.length === 0 && upcomingHoles.length === 0);
+    }
+    
     scheduleHelpfulPlatform(offsetX = 150) {
         // Schedule a platform to appear at a helpful position
         const platform = {
@@ -690,7 +1308,30 @@ class InfiniteRunner {
         // Check obstacle collisions
         this.obstacles.forEach(obstacle => {
             if (this.isColliding(this.player, obstacle)) {
-                this.gameOver();
+                this.startDeathAnimation();
+            }
+        });
+        
+        // Check block collisions (blocks allow standing on top only)
+        this.blocks.forEach(block => {
+            if (this.isCollidingWithBlock(this.player, block)) {
+                // Check if collision is from top
+                const playerBottom = this.player.y + this.player.height;
+                const blockTop = block.y;
+                const playerCenterX = this.player.x + this.player.width / 2;
+                const blockCenterX = block.x + block.width / 2;
+                
+                // If player is landing on top of block
+                if (playerBottom <= blockTop + 10 && this.player.velocityY >= 0 && 
+                    Math.abs(playerCenterX - blockCenterX) < block.width / 2) {
+                    // Player can stand on block
+                    this.player.y = blockTop - this.player.height;
+                    this.player.velocityY = 0;
+                    this.player.jumping = false;
+                    this.player.grounded = true;
+                    this.player.airJumpsLeft = 1;
+                }
+                // Side collisions are now prevented in updatePlayer, no need to handle here
             }
         });
         
@@ -699,6 +1340,14 @@ class InfiniteRunner {
             const coin = this.coins[i];
             if (this.isColliding(this.player, coin)) {
                 this.collectCoin(coin, i);
+            }
+        }
+        
+        // Check watch powerup collisions
+        for (let i = this.watches.length - 1; i >= 0; i--) {
+            const watch = this.watches[i];
+            if (this.isColliding(this.player, watch)) {
+                this.collectWatch(watch, i);
             }
         }
         
@@ -718,7 +1367,28 @@ class InfiniteRunner {
         // Check hole collisions (player falls and dies)
         this.holes.forEach(hole => {
             if (this.isCollidingWithHole(this.player, hole)) {
-                this.gameOver();
+                this.startDeathAnimation();
+            }
+        });
+        
+        // Check ramp collisions (player can run up them)
+        this.ramps.forEach(ramp => {
+            if (this.isCollidingWithRamp(this.player, ramp)) {
+                this.handleRampCollision(this.player, ramp);
+            }
+        });
+        
+        // Check bird collisions (deadly)
+        this.birds.forEach(bird => {
+            if (this.isColliding(this.player, bird)) {
+                this.startDeathAnimation();
+            }
+        });
+        
+        // Check snail collisions (deadly)
+        this.snails.forEach(snail => {
+            if (this.isColliding(this.player, snail)) {
+                this.startDeathAnimation();
             }
         });
     }
@@ -752,25 +1422,154 @@ class InfiniteRunner {
                playerBottom >= groundLevel; // Player is at or below ground level
     }
     
+    isCollidingWithBlock(player, block) {
+        // Standard AABB collision detection
+        return player.x < block.x + block.width &&
+               player.x + player.width > block.x &&
+               player.y < block.y + block.height &&
+               player.y + player.height > block.y;
+    }
+    
+    startDeathAnimation() {
+        if (this.deathAnimation.active) return; // Already dying
+        
+        this.deathAnimation.active = true;
+        this.deathAnimation.timer = 0;
+        this.deathAnimation.rotation = 0;
+        this.deathAnimation.scale = 1;
+        
+        // Stop world movement during death
+        this.worldSpeed = 0;
+    }
+    
+    isCollidingWithRamp(player, ramp) {
+        // Check if player is touching the ramp
+        return player.x < ramp.x + ramp.width &&
+               player.x + player.width > ramp.x &&
+               player.y + player.height >= ramp.y &&
+               player.y + player.height <= ramp.y + ramp.height + 10; // Allow some tolerance
+    }
+    
+    handleRampCollision(player, ramp) {
+        // Calculate the ramp surface height at player's x position
+        const relativeX = Math.max(0, Math.min(ramp.width, player.x + player.width/2 - ramp.x));
+        const rampSurfaceY = ramp.y + ramp.height - (relativeX * ramp.slope);
+        
+        // Only apply ramp physics if player is on or near the ramp surface
+        if (player.y + player.height >= rampSurfaceY - 5) {
+            player.y = rampSurfaceY - player.height;
+            player.velocityY = 0;
+            player.grounded = true;
+            player.jumping = false;
+            player.baseY = player.y;
+            player.airJumpsLeft = 1; // Reset air jumps when on ramp
+            
+            // Give player a slight upward boost when leaving the ramp
+            if (relativeX >= ramp.width - 5) { // Near the end of the ramp
+                player.velocityY = -8; // Boost upward
+                player.grounded = false;
+            }
+        }
+    }
+    
     collectCoin(coin, index) {
-        this.score += 10;
+        const basePoints = 10;
+        const pointsEarned = basePoints * coin.multiplier;
+        this.coinScore += pointsEarned;
+        
+        // Ensure coin score doesn't go below 0
+        if (this.coinScore < 0) {
+            this.coinScore = 0;
+        }
+        
+        // Create floating score text
+        this.createScorePopup(coin.x, coin.y, pointsEarned, coin.multiplier);
+        
         this.coins.splice(index, 1);
         
-        // Create particle effect
-        for (let i = 0; i < 5; i++) {
+        // Create particle effect with coin's color
+        for (let i = 0; i < 8; i++) {
             this.particles.push({
                 x: coin.x + coin.size / 2,
                 y: coin.y + coin.size / 2,
                 vx: (Math.random() - 0.5) * 6,
                 vy: (Math.random() - 0.5) * 6,
-                life: 30,
-                color: '#FFD700'
+                life: 40,
+                maxLife: 40,
+                color: coin.color
             });
         }
     }
     
+    collectWatch(watch, index) {
+        // Add 10 seconds to the timer
+        this.gameTimeRemaining = Math.min(this.gameTimeLimit, this.gameTimeRemaining + 10);
+        
+        // Create time bonus popup (modify createScorePopup to accept custom text)
+        this.createTimePopup(watch.x, watch.y, '+10 SEC');
+        
+        // Remove the watch
+        this.watches.splice(index, 1);
+        
+        // Create particle effect with gold color
+        for (let i = 0; i < 10; i++) {
+            this.particles.push({
+                x: watch.x + watch.width / 2,
+                y: watch.y + watch.height / 2,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 50,
+                maxLife: 50,
+                color: '#FFD700' // Gold color
+            });
+        }
+    }
+    
+    createTimePopup(x, y, text) {
+        const popup = {
+            x: x,
+            y: y,
+            text: text,
+            life: 80,
+            maxLife: 80,
+            velocityY: -2,
+            color: '#4CAF50' // Green for time bonus
+        };
+        this.scorePopups.push(popup);
+    }
+    
+    createScorePopup(x, y, points, multiplier) {
+        const popup = {
+            x: x,
+            y: y,
+            points: points,
+            multiplier: multiplier,
+            life: 60, // 1 second at 60fps
+            maxLife: 60,
+            velocityY: -2 // Float upward
+        };
+        this.scorePopups.push(popup);
+    }
+    
+    updateScorePopups() {
+        for (let i = this.scorePopups.length - 1; i >= 0; i--) {
+            const popup = this.scorePopups[i];
+            popup.life--;
+            popup.y += popup.velocityY;
+            popup.velocityY += 0.05; // Slight gravity
+            
+            if (popup.life <= 0) {
+                this.scorePopups.splice(i, 1);
+            }
+        }
+    }
+    
     updateScore() {
-        this.score += 1;
+        // Score = coin points + distance points (1 point per 10 pixels of NEW ground covered)
+        // Only award points for the furthest distance reached, not total distance traveled
+        const distanceScore = Math.floor(this.maxDistanceReached / 10);
+        this.score = this.coinScore + distanceScore;
+        
         document.getElementById('score').textContent = `Score: ${this.score}`;
     }
     
@@ -809,22 +1608,35 @@ class InfiniteRunner {
         this.renderBackground();
         this.renderGround();
         this.renderHoles(); // Render holes before ground
+        this.renderRamps(); // Render ramps on ground
+        this.renderBlocks(); // Render jumpable blocks
+        this.renderBirds(); // Render flying enemies
+        this.renderSnails(); // Render ground enemies
+        this.renderWatches(); // Render time powerups
         this.renderClouds();
         this.renderPlatforms();
         this.renderCoins();
         this.renderObstacles();
         this.renderPlayer();
         this.renderParticles();
+        this.renderScorePopups();
     }
     
     renderBackground() {
-        // Sky gradient - subtle and calm
+        // Dynamic sky gradient based on time of day
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-        gradient.addColorStop(0, '#E6F3FF'); // Very light blue
-        gradient.addColorStop(0.7, '#F0F8FF'); // Almost white
-        gradient.addColorStop(1, '#F5F5DC'); // Light beige near ground
+        
+        // Calculate sky colors based on time of day
+        const skyColors = this.getSkyColors(this.timeOfDay);
+        gradient.addColorStop(0, skyColors.top);
+        gradient.addColorStop(0.7, skyColors.middle);
+        gradient.addColorStop(1, skyColors.bottom);
+        
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.displayWidth, this.displayHeight);
+        
+        // Render celestial objects (sun, moon, stars)
+        this.renderCelestialObjects();
         
         // Render mountains (furthest back)
         this.renderMountains();
@@ -834,6 +1646,129 @@ class InfiniteRunner {
         
         // Render trees (closest background elements)
         this.renderTrees();
+    }
+    
+    getSkyColors(timeOfDay) {
+        // timeOfDay: 0 = dawn, 0.25 = day, 0.5 = dusk, 0.75 = night, 1 = dawn
+        const colors = {};
+        
+        if (timeOfDay < 0.125) { // Early dawn
+            const t = timeOfDay / 0.125;
+            colors.top = this.interpolateColor('#1a1a2e', '#ff6b6b', t);
+            colors.middle = this.interpolateColor('#16213e', '#ffa500', t);
+            colors.bottom = this.interpolateColor('#0f3460', '#ffb347', t);
+        } else if (timeOfDay < 0.375) { // Dawn to day
+            const t = (timeOfDay - 0.125) / 0.25;
+            colors.top = this.interpolateColor('#ff6b6b', '#87ceeb', t);
+            colors.middle = this.interpolateColor('#ffa500', '#e6f3ff', t);
+            colors.bottom = this.interpolateColor('#ffb347', '#f0f8ff', t);
+        } else if (timeOfDay < 0.625) { // Day to dusk
+            const t = (timeOfDay - 0.375) / 0.25;
+            colors.top = this.interpolateColor('#87ceeb', '#ff4500', t);
+            colors.middle = this.interpolateColor('#e6f3ff', '#ff6347', t);
+            colors.bottom = this.interpolateColor('#f0f8ff', '#ffd700', t);
+        } else if (timeOfDay < 0.875) { // Dusk to night
+            const t = (timeOfDay - 0.625) / 0.25;
+            colors.top = this.interpolateColor('#ff4500', '#0c0c0c', t);
+            colors.middle = this.interpolateColor('#ff6347', '#1a1a2e', t);
+            colors.bottom = this.interpolateColor('#ffd700', '#2c2c54', t);
+        } else { // Night to dawn
+            const t = (timeOfDay - 0.875) / 0.125;
+            colors.top = this.interpolateColor('#0c0c0c', '#1a1a2e', t);
+            colors.middle = this.interpolateColor('#1a1a2e', '#16213e', t);
+            colors.bottom = this.interpolateColor('#2c2c54', '#0f3460', t);
+        }
+        
+        return colors;
+    }
+    
+    interpolateColor(color1, color2, factor) {
+        // Convert hex to RGB
+        const hex1 = color1.replace('#', '');
+        const hex2 = color2.replace('#', '');
+        
+        const r1 = parseInt(hex1.substr(0, 2), 16);
+        const g1 = parseInt(hex1.substr(2, 2), 16);
+        const b1 = parseInt(hex1.substr(4, 2), 16);
+        
+        const r2 = parseInt(hex2.substr(0, 2), 16);
+        const g2 = parseInt(hex2.substr(2, 2), 16);
+        const b2 = parseInt(hex2.substr(4, 2), 16);
+        
+        // Interpolate
+        const r = Math.round(r1 + (r2 - r1) * factor);
+        const g = Math.round(g1 + (g2 - g1) * factor);
+        const b = Math.round(b1 + (b2 - b1) * factor);
+        
+        // Convert back to hex
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+    
+    renderCelestialObjects() {
+        const sunMoonSize = 40;
+        const sunMoonY = this.displayHeight * 0.15;
+        
+        // Calculate sun/moon position based on time of day
+        const celestialX = this.displayWidth * 0.2 + (this.displayWidth * 0.6) * this.timeOfDay;
+        
+        if (this.timeOfDay < 0.5) { // Day time - show sun
+            const sunOpacity = 1 - Math.abs(this.timeOfDay - 0.25) * 4; // Brightest at 0.25 (noon)
+            if (sunOpacity > 0) {
+                // Sun glow
+                const glowGradient = this.ctx.createRadialGradient(celestialX, sunMoonY, 0, celestialX, sunMoonY, sunMoonSize * 1.5);
+                glowGradient.addColorStop(0, `rgba(255, 255, 0, ${sunOpacity * 0.3})`);
+                glowGradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                this.ctx.fillStyle = glowGradient;
+                this.ctx.fillRect(celestialX - sunMoonSize * 1.5, sunMoonY - sunMoonSize * 1.5, 
+                                sunMoonSize * 3, sunMoonSize * 3);
+                
+                // Sun
+                this.ctx.fillStyle = `rgba(255, 215, 0, ${sunOpacity})`;
+                this.ctx.beginPath();
+                this.ctx.arc(celestialX, sunMoonY, sunMoonSize, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        } else { // Night time - show moon and stars
+            const moonOpacity = 1 - Math.abs(this.timeOfDay - 0.75) * 4; // Brightest at 0.75 (midnight)
+            if (moonOpacity > 0) {
+                // Moon
+                this.ctx.fillStyle = `rgba(245, 245, 220, ${moonOpacity})`;
+                this.ctx.beginPath();
+                this.ctx.arc(celestialX, sunMoonY, sunMoonSize * 0.8, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Moon craters
+                this.ctx.fillStyle = `rgba(200, 200, 180, ${moonOpacity * 0.3})`;
+                this.ctx.beginPath();
+                this.ctx.arc(celestialX - 10, sunMoonY - 8, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.beginPath();
+                this.ctx.arc(celestialX + 8, sunMoonY + 5, 4, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            // Stars
+            if (this.timeOfDay > 0.6 && this.timeOfDay < 0.9) {
+                this.renderStars();
+            }
+        }
+    }
+    
+    renderStars() {
+        // Generate consistent stars based on a seed
+        const starCount = 50;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        
+        for (let i = 0; i < starCount; i++) {
+            // Use deterministic positions so stars don't flicker
+            const x = (i * 137.5) % this.displayWidth; // Golden angle for distribution
+            const y = (i * 73.2) % (this.displayHeight * 0.4); // Only in upper 40% of sky
+            const size = 1 + (i % 3); // Varying star sizes
+            
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
     }
     
     renderMountains() {
@@ -943,6 +1878,227 @@ class InfiniteRunner {
         });
     }
     
+    renderRamps() {
+        this.ramps.forEach(ramp => {
+            this.ctx.save();
+            
+            // Main ramp body - earthy brown
+            this.ctx.fillStyle = '#8B4513'; // Brown ramp
+            this.ctx.beginPath();
+            this.ctx.moveTo(ramp.x, ramp.y + ramp.height); // Bottom left
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y + ramp.height); // Bottom right
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y); // Top right
+            this.ctx.lineTo(ramp.x, ramp.y + ramp.height); // Back to bottom left
+            this.ctx.fill();
+            
+            // Ramp surface - lighter brown
+            this.ctx.fillStyle = '#D2B48C';
+            this.ctx.beginPath();
+            this.ctx.moveTo(ramp.x, ramp.y + ramp.height); // Bottom left
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y); // Top right
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y + 3); // Top right with thickness
+            this.ctx.lineTo(ramp.x, ramp.y + ramp.height); // Back to bottom left
+            this.ctx.fill();
+            
+            // Ramp edges for definition
+            this.ctx.strokeStyle = '#654321';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(ramp.x, ramp.y + ramp.height);
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y);
+            this.ctx.stroke();
+            
+            // Side edge
+            this.ctx.beginPath();
+            this.ctx.moveTo(ramp.x + ramp.width, ramp.y);
+            this.ctx.lineTo(ramp.x + ramp.width, ramp.y + ramp.height);
+            this.ctx.stroke();
+            
+            this.ctx.restore();
+        });
+    }
+    
+    renderBlocks() {
+        this.blocks.forEach(block => {
+            this.ctx.save();
+            
+            // Main block body - stone gray
+            this.ctx.fillStyle = '#696969';
+            this.ctx.fillRect(block.x, block.y, block.width, block.height);
+            
+            // Block outline - darker gray
+            this.ctx.strokeStyle = '#2F2F2F';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(block.x, block.y, block.width, block.height);
+            
+            // Add some texture lines
+            this.ctx.strokeStyle = '#808080';
+            this.ctx.lineWidth = 1;
+            
+            // Horizontal lines
+            for (let i = 1; i < 3; i++) {
+                const y = block.y + (block.height / 3) * i;
+                this.ctx.beginPath();
+                this.ctx.moveTo(block.x + 5, y);
+                this.ctx.lineTo(block.x + block.width - 5, y);
+                this.ctx.stroke();
+            }
+            
+            // Vertical lines
+            for (let i = 1; i < 3; i++) {
+                const x = block.x + (block.width / 3) * i;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, block.y + 5);
+                this.ctx.lineTo(x, block.y + block.height - 5);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.restore();
+        });
+    }
+    
+    renderBirds() {
+        this.birds.forEach(bird => {
+            this.ctx.save();
+            
+            // Use bird image if loaded, otherwise draw a simple bird shape
+            if (this.assetsLoaded && this.birdImage.complete) {
+                // Apply wing flapping animation
+                this.ctx.translate(bird.x + bird.width/2, bird.y + bird.height/2);
+                this.ctx.translate(0, bird.wingOffset); // Vertical bobbing
+                this.ctx.translate(-bird.width/2, -bird.height/2);
+                
+                this.ctx.drawImage(this.birdImage, 0, 0, bird.width, bird.height);
+            } else {
+                // Fallback: draw a simple bird shape
+                this.ctx.fillStyle = '#4A4A4A'; // Dark gray bird
+                
+                // Bird body (oval)
+                this.ctx.beginPath();
+                this.ctx.ellipse(bird.x + bird.width/2, bird.y + bird.height/2 + bird.wingOffset, 
+                               bird.width/3, bird.height/2, 0, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                // Simple wings
+                this.ctx.fillStyle = '#666666';
+                this.ctx.beginPath();
+                this.ctx.ellipse(bird.x + bird.width/4, bird.y + bird.height/2 + bird.wingOffset, 
+                               bird.width/4, bird.height/4, 0, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                this.ctx.beginPath();
+                this.ctx.ellipse(bird.x + 3*bird.width/4, bird.y + bird.height/2 + bird.wingOffset, 
+                               bird.width/4, bird.height/4, 0, 0, 2 * Math.PI);
+                this.ctx.fill();
+            }
+            
+            this.ctx.restore();
+        });
+    }
+    
+    renderSnails() {
+        this.snails.forEach(snail => {
+            this.ctx.save();
+            
+            // Use snail image if loaded, otherwise draw a simple snail shape
+            if (this.assetsLoaded && this.snailImage.complete) {
+                // Apply shell bobbing animation
+                this.ctx.translate(snail.x + snail.width/2, snail.y + snail.height/2);
+                this.ctx.translate(0, snail.shellOffset); // Vertical bobbing
+                this.ctx.translate(-snail.width/2, -snail.height/2);
+                
+                this.ctx.drawImage(this.snailImage, 0, 0, snail.width, snail.height);
+            } else {
+                // Fallback: draw a simple snail shape
+                // Snail body (elongated oval)
+                this.ctx.fillStyle = '#8B4513'; // Brown body
+                this.ctx.beginPath();
+                this.ctx.ellipse(snail.x + snail.width/3, snail.y + 2*snail.height/3 + snail.shellOffset, 
+                               snail.width/3, snail.height/4, 0, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                // Shell (circle)
+                this.ctx.fillStyle = '#D2B48C'; // Tan shell
+                this.ctx.beginPath();
+                this.ctx.arc(snail.x + 2*snail.width/3, snail.y + snail.height/2 + snail.shellOffset, 
+                           snail.height/3, 0, 2 * Math.PI);
+                this.ctx.fill();
+                
+                // Shell spiral
+                this.ctx.strokeStyle = '#8B4513';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.arc(snail.x + 2*snail.width/3, snail.y + snail.height/2 + snail.shellOffset, 
+                           snail.height/6, 0, 2 * Math.PI);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.restore();
+        });
+    }
+    
+    renderWatches() {
+        this.watches.forEach(watch => {
+            this.ctx.save();
+            
+            // Watch position with floating effect
+            const renderX = watch.x;
+            const renderY = watch.y + watch.floatOffset;
+            
+            // Glowing effect
+            const glowSize = watch.width * 1.5;
+            const gradient = this.ctx.createRadialGradient(
+                renderX + watch.width/2, renderY + watch.height/2, 0,
+                renderX + watch.width/2, renderY + watch.height/2, glowSize
+            );
+            gradient.addColorStop(0, `rgba(255, 215, 0, ${watch.glowIntensity})`);
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(renderX - glowSize/2, renderY - glowSize/2, 
+                             watch.width + glowSize, watch.height + glowSize);
+            
+            // Watch body (simple clock shape)
+            this.ctx.fillStyle = '#FFD700'; // Gold
+            this.ctx.beginPath();
+            this.ctx.arc(renderX + watch.width/2, renderY + watch.height/2, 
+                        watch.width/2 - 2, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // Watch face
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.beginPath();
+            this.ctx.arc(renderX + watch.width/2, renderY + watch.height/2, 
+                        watch.width/2 - 6, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // Clock hands
+            this.ctx.strokeStyle = '#333333';
+            this.ctx.lineWidth = 2;
+            this.ctx.lineCap = 'round';
+            
+            // Hour hand
+            this.ctx.beginPath();
+            this.ctx.moveTo(renderX + watch.width/2, renderY + watch.height/2);
+            this.ctx.lineTo(renderX + watch.width/2 + 6, renderY + watch.height/2 - 6);
+            this.ctx.stroke();
+            
+            // Minute hand
+            this.ctx.beginPath();
+            this.ctx.moveTo(renderX + watch.width/2, renderY + watch.height/2);
+            this.ctx.lineTo(renderX + watch.width/2 - 8, renderY + watch.height/2 - 2);
+            this.ctx.stroke();
+            
+            // Center dot
+            this.ctx.fillStyle = '#333333';
+            this.ctx.beginPath();
+            this.ctx.arc(renderX + watch.width/2, renderY + watch.height/2, 2, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            this.ctx.restore();
+        });
+    }
+    
     renderPlatforms() {
         this.platforms.forEach(platform => {
             // Platform base
@@ -989,7 +2145,11 @@ class InfiniteRunner {
         let scaleX = 1;
         let scaleY = 1;
         
-        if (this.gameState === 'playing') {
+        // Death animation overrides all other animations
+        if (this.deathAnimation.active) {
+            rotation = this.deathAnimation.rotation;
+            scaleX = scaleY = this.deathAnimation.scale;
+        } else if (this.gameState === 'playing') {
             if (this.player.jumping) {
                 // Slight forward lean when jumping
                 rotation = 0.1; // 0.1 radians forward lean
@@ -1057,28 +2217,97 @@ class InfiniteRunner {
         this.coins.forEach(coin => {
             this.ctx.save();
             this.ctx.translate(coin.x + coin.size / 2, coin.y + coin.size / 2);
+            
+            // Pulsing effect for higher value coins
+            const pulseScale = 1 + Math.sin(coin.pulseTime) * 0.1 * Math.abs(coin.multiplier);
+            this.ctx.scale(pulseScale, pulseScale);
+            
+            // Rotate only for the coin background, not the text
             this.ctx.rotate(coin.rotation);
             
-            if (this.assetsLoaded && this.coinImage.complete) {
-                // Render coin image
-                this.ctx.drawImage(this.coinImage, -coin.size / 2, -coin.size / 2, coin.size, coin.size);
+            // Render coin with multiplier colors
+            const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, coin.size / 2);
+            gradient.addColorStop(0, coin.color);
+            gradient.addColorStop(0.7, coin.color);
+            gradient.addColorStop(1, this.darkenColor(coin.color, 0.3));
+            this.ctx.fillStyle = gradient;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, coin.size / 2, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Border
+            this.ctx.strokeStyle = this.darkenColor(coin.color, 0.5);
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            // Reset rotation for text so it stays upright
+            this.ctx.rotate(-coin.rotation);
+            
+            // Multiplier text (now upright)
+            this.ctx.fillStyle = coin.textColor;
+            this.ctx.font = `bold ${coin.size * 0.4}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            const text = coin.multiplier > 0 ? `${coin.multiplier}x` : `${coin.multiplier}x`;
+            this.ctx.fillText(text, 0, 0);
+            
+            this.ctx.restore();
+        });
+    }
+    
+    darkenColor(color, factor) {
+        // Convert hex to RGB, darken, and convert back
+        const hex = color.replace('#', '');
+        const r = Math.max(0, parseInt(hex.substr(0, 2), 16) * (1 - factor));
+        const g = Math.max(0, parseInt(hex.substr(2, 2), 16) * (1 - factor));
+        const b = Math.max(0, parseInt(hex.substr(4, 2), 16) * (1 - factor));
+        
+        return `#${Math.floor(r).toString(16).padStart(2, '0')}${Math.floor(g).toString(16).padStart(2, '0')}${Math.floor(b).toString(16).padStart(2, '0')}`;
+    }
+    
+    renderScorePopups() {
+        this.scorePopups.forEach(popup => {
+            const alpha = popup.life / popup.maxLife;
+            this.ctx.save();
+            
+            let text, fillColor, strokeColor;
+            
+            if (popup.text) {
+                // Time popup (has custom text)
+                text = popup.text;
+                fillColor = popup.color || '#4CAF50'; // Green for time
+                strokeColor = 'rgba(0, 0, 0, ' + alpha + ')';
             } else {
-                // Fallback coin gradient
-                const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, coin.size / 2);
-                gradient.addColorStop(0, '#FFD700');
-                gradient.addColorStop(1, '#FFA500');
-                this.ctx.fillStyle = gradient;
-                
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, coin.size / 2, 0, Math.PI * 2);
-                this.ctx.fill();
-                
-                // Inner circle
-                this.ctx.fillStyle = '#FF8C00';
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, coin.size / 4, 0, Math.PI * 2);
-                this.ctx.fill();
+                // Score popup (has points)
+                text = popup.points > 0 ? `+${popup.points}` : `${popup.points}`;
+                fillColor = popup.points > 0 ? '#00FF00' : '#FF0000';
+                strokeColor = 'rgba(0, 0, 0, ' + alpha + ')';
             }
+            
+            // Extract RGB from hex color for alpha
+            const hexMatch = fillColor.match(/^#([0-9a-f]{6})$/i);
+            if (hexMatch) {
+                const hex = hexMatch[1];
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            } else {
+                this.ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`; // Fallback
+            }
+            
+            this.ctx.strokeStyle = strokeColor;
+            this.ctx.lineWidth = 2;
+            
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            // Text outline
+            this.ctx.strokeText(text, popup.x, popup.y);
+            this.ctx.fillText(text, popup.x, popup.y);
             
             this.ctx.restore();
         });

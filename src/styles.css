@@ -121,6 +121,18 @@ button:active {
     transform: translateY(0);
 }
 
+.fullscreen-btn {
+    background: linear-gradient(45deg, #4CAF50, #45a049);
+    font-size: 16px;
+    padding: 12px 24px;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
 .hidden {
     display: none !important;
 }
@@ -206,5 +218,128 @@ button:active {
         padding: 8px 20px;
         font-size: 14px;
         margin-top: 10px;
+    }
+}
+
+/* Mobile Controls */
+.mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.controls-left,
+.controls-right {
+    display: flex;
+    gap: 15px;
+    pointer-events: all;
+}
+
+.control-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    margin: 0;
+    padding: 0;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.7);
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(0.95);
+}
+
+.jump-btn {
+    width: 80px;
+    height: 60px;
+    border-radius: 30px;
+    font-size: 14px;
+    background: rgba(255, 107, 107, 0.8);
+    border-color: rgba(255, 107, 107, 1);
+}
+
+.jump-btn:hover {
+    background: rgba(255, 107, 107, 0.9);
+}
+
+.jump-btn:active {
+    background: rgba(255, 107, 107, 1);
+}
+
+.game-fullscreen-btn {
+    width: 50px;
+    height: 50px;
+    background: rgba(76, 175, 80, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    font-size: 18px;
+    margin-left: 10px;
+}
+
+.game-fullscreen-btn:active {
+    background: rgba(76, 175, 80, 1);
+}
+
+/* Timer Display */
+.timer-display {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Hide mobile controls on desktop */
+@media (min-width: 769px) {
+    .mobile-controls {
+        display: none;
+    }
+}
+
+/* Show mobile controls only during gameplay on mobile */
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: flex;
+    }
+    
+    .timer-display {
+        top: 10px;
+        font-size: 18px;
+        padding: 6px 12px;
     }
 }

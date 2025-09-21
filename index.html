@@ -11,7 +11,7 @@
     <meta name="msapplication-navbutton-color" content="#667eea">
     <meta name="apple-mobile-web-app-title" content="Adi's Running Game">
     <title>Adi's Running Game</title>
-    <link rel="stylesheet" href="src/styles.css?v=1726851300">
+    <link rel="stylesheet" href="src/styles.css?v=1726853050">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -31,14 +31,32 @@
                 <p>Tap to jump and avoid obstacles!</p>
                 <p>Collect coins for points!</p>
                 <button id="startBtn">Start Game</button>
+        <button id="fullscreenBtn" class="fullscreen-btn" style="display: none;">📱 Fullscreen</button>
             </div>
             <div id="instructions" class="mobile-only">
-                <p>Tap to jump</p>
+                <p>Use buttons to move and jump</p>
             </div>
+            
+            <!-- Mobile Control Buttons -->
+            <div id="mobileControls" class="mobile-controls">
+                <div class="controls-left">
+                    <button id="leftBtn" class="control-btn">←</button>
+                    <button id="rightBtn" class="control-btn">→</button>
+                </div>
+                <div class="controls-right">
+                    <button id="jumpBtn" class="control-btn jump-btn">JUMP</button>
+                    <button id="gameFullscreenBtn" class="game-fullscreen-btn">📱</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Timer Display -->
+        <div id="timerDisplay" class="timer-display">
+            <span id="timer">3:00</span>
         </div>
     </div>
     
-    <script src="src/game.js?v=1726851200"></script>
+    <script src="src/game.js?v=1726853050"></script>
     <script>
         // Register service worker for PWA functionality
         if ('serviceWorker' in navigator) {
@@ -65,20 +83,44 @@
             }
         }
         
+        // Make enterFullscreen globally accessible
+        window.enterFullscreen = enterFullscreen;
+        
         // Auto-enter fullscreen on mobile when game starts
         function isMobile() {
             return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         }
         
-        // Listen for game start to trigger fullscreen
+        // Safe fullscreen functionality for mobile
         document.addEventListener('DOMContentLoaded', () => {
-            const startButton = document.getElementById('startBtn');
-            if (startButton && isMobile()) {
-                startButton.addEventListener('click', () => {
-                    setTimeout(() => {
-                        enterFullscreen();
-                    }, 100);
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const startBtn = document.getElementById('startBtn');
+            
+            // Show fullscreen button on mobile
+            if (fullscreenBtn && isMobile()) {
+                fullscreenBtn.style.display = 'inline-block';
+                
+                // Fullscreen button handler
+                fullscreenBtn.addEventListener('click', () => {
+                    enterFullscreen();
+                    fullscreenBtn.style.display = 'none'; // Hide after use
                 });
+            }
+            
+            // Optional: Auto-show fullscreen suggestion on first start
+            if (startBtn && isMobile()) {
+                let hasShownFullscreenSuggestion = localStorage.getItem('fullscreenSuggested');
+                if (!hasShownFullscreenSuggestion) {
+                    startBtn.addEventListener('click', () => {
+                        setTimeout(() => {
+                            if (fullscreenBtn && fullscreenBtn.style.display !== 'none') {
+                                fullscreenBtn.style.background = 'linear-gradient(45deg, #FFD700, #FFA500)';
+                                fullscreenBtn.style.animation = 'pulse 1s infinite';
+                                localStorage.setItem('fullscreenSuggested', 'true');
+                            }
+                        }, 1000);
+                    }, { once: true });
+                }
             }
         });
         
