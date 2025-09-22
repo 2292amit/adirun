@@ -1442,8 +1442,8 @@ class InfiniteRunner {
         const bird = {
             x: this.displayWidth + 50, // Start off-screen to the right
             y: birdY,
-            width: 40,
-            height: 30,
+            width: 80, // Doubled from 40
+            height: 60, // Doubled from 30
             type: 'bird',
             animationTime: 0,
             wingOffset: 0
@@ -1455,9 +1455,9 @@ class InfiniteRunner {
     spawnSnail() {
         const snail = {
             x: this.displayWidth + 30, // Start off-screen to the right
-            y: this.displayHeight - this.groundHeight - 25, // On ground
-            width: 35,
-            height: 25,
+            y: this.displayHeight - this.groundHeight - 50, // On ground (adjusted for larger size)
+            width: 70, // Doubled from 35
+            height: 50, // Doubled from 25
             type: 'snail',
             animationTime: 0,
             shellOffset: 0
